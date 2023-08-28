@@ -2,7 +2,7 @@ version: '3.8'
 services:
   api:
     build:
-      context: ./backend_elements/
+      context: .
       dockerfile: Dockerfile
     container_name: fastapi
     environment:
