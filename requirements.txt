@@ -5,4 +5,5 @@ bcrypt
 python-multipart
 uvicorn
 pyodbc
+pymssql
 cryptography
