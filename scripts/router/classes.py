@@ -5,12 +5,29 @@ from fastapi.security import OAuth2PasswordBearer
 from .body.classes import ClassCreationForm
 import jwt
 import os
+import pyodbc
 
 router = APIRouter(prefix='/class')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
 SECRET_KEY = os.environ.get('key')
 ALGORITHM = 'HS256'
-crud = SQLManager('Driver={ODBC Driver 17 for SQL Server};Server=tcp:%s,1433;Database=%s;Uid=%s;Pwd=%s;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'%(os.environ.get('SQL_SERVER'), os.environ.get('SQL_DB'), os.environ.get('SQL_USERNAME'), os.environ.get('SQL_PASSWORD')))
+driver = pyodbc.drivers()
+if driver:
+    print(driver)
+    driver = driver[-1]
+crud = SQLManager('''Driver={%s};
+                       Server=tcp:%s,%d;
+                       Database=%s;
+                       Uid=%s;
+                       Pwd=%s;
+                       Encrypt=yes;
+                       TrustServerCertificate=no;Connection Timeout=300;
+                    '''%(driver,
+                         os.environ.get('AZURE_SQL_SERVER'),
+                         int(os.environ.get('AZURE_SQL_PORT')), 
+                         os.environ.get('AZURE_SQL_DATABASE'), 
+                         os.environ.get('AZURE_SQL_USER'), 
+                         os.environ.get('AZURE_SQL_PASSWORD')))
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(

@@ -21,17 +21,18 @@ if driver:
     print(driver)
     driver = driver[-1]
 conn = pyodbc.connect('''Driver={%s};
-                       Server=tcp:%s,1433;
+                       Server=tcp:%s,%d;
                        Database=%s;
                        Uid=%s;
                        Pwd=%s;
                        Encrypt=yes;
                        TrustServerCertificate=no;Connection Timeout=300;
                     '''%(driver,
-                         os.environ.get('SQL_SERVER'), 
-                         os.environ.get('SQL_DB'), 
-                         os.environ.get('SQL_USERNAME'), 
-                         os.environ.get('SQL_PASSWORD')))
+                         os.environ.get('AZURE_SQL_SERVER'),
+                         int(os.environ.get('AZURE_SQL_PORT')), 
+                         os.environ.get('AZURE_SQL_DATABASE'), 
+                         os.environ.get('AZURE_SQL_USER'), 
+                         os.environ.get('AZURE_SQL_PASSWORD')))
 #connection_string = 'Driver={ODBC Driver 17 for SQL Server};Server=tcp:otudy-team.database.windows.net,1433;Database=main-db;Uid=aketdOTUDY012023;Pwd=oT-,872%54Asdwzzsq>*90;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 #conn = odbc.connect(connection_string)
 cursor = conn.cursor()
