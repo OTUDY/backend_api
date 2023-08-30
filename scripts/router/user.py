@@ -21,7 +21,7 @@ if driver:
     print(driver)
     driver = driver[-1]
 conn = pyodbc.connect('''Driver={%s};
-                       Server=tcp:%s;
+                       Server=tcp:%s,1433;
                        Database=%s;
                        Uid=%s;
                        Pwd=%s;
