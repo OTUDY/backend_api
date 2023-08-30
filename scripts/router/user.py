@@ -20,7 +20,7 @@ driver = pyodbc.drivers()
 if driver:
     print(driver)
     driver = driver[-1]
-conn = pyodbc.connect('''Driver={%s};
+connection_string = '''Driver={%s};
                        Server=tcp:%s,%d;
                        Database=%s;
                        Uid=%s;
@@ -32,10 +32,7 @@ conn = pyodbc.connect('''Driver={%s};
                          int(os.environ.get('AZURE_SQL_PORT')), 
                          os.environ.get('AZURE_SQL_DATABASE'), 
                          os.environ.get('AZURE_SQL_USER'), 
-                         os.environ.get('AZURE_SQL_PASSWORD')))
-#connection_string = 'Driver={ODBC Driver 17 for SQL Server};Server=tcp:otudy-team.database.windows.net,1433;Database=main-db;Uid=aketdOTUDY012023;Pwd=oT-,872%54Asdwzzsq>*90;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
-#conn = odbc.connect(connection_string)
-cursor = conn.cursor()
+                         os.environ.get('AZURE_SQL_PASSWORD'))
 cipher = Fernet(SECRET.encode())
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -66,6 +63,8 @@ def root() -> Response:
 def register(data: RegisterForm) -> Response:
     ''' Param
     '''
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     user_check: any = cursor.execute(f"SELECT user_email FROM dbo.Users WHERE user_email = '{data.email}'").fetchone()
     #user_check: any = cursor.execute('SELECT * FROM dbo.Affiliations;')
     if user_check:
@@ -101,6 +100,7 @@ def register(data: RegisterForm) -> Response:
                     )
                 ''')
     conn.commit()
+    conn.close()
     return JSONResponse(
                 status_code=status.HTTP_201_CREATED,
                 content={
@@ -114,6 +114,8 @@ def register(data: RegisterForm) -> Response:
 # ------ Token ------
 @router.post("/login", tags=['user'])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     user_data: any = cursor.execute(f"SELECT * FROM dbo.Users WHERE user_email = '{form_data.username}'")
     data = user_data.fetchone()
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
@@ -129,6 +131,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": form_data.username}, expires_delta=access_token_expires, secret=SECRET, algorithm='HS256'
     )
     print(f'| System notification | : User {form_data.username} has logged in @ {datetime.utcnow()}.')
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED, 
         content={
@@ -142,6 +145,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 # ------------------
 @router.get("/get_user_detail", tags=['user'])
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     user_data: any = cursor.execute(
         f'''SELECT dbo.Users.user_email, dbo.Users.user_fname, dbo.Users.user_surname,  dbo.Users.user_phone, dbo.Roles.role_name
             FROM dbo.Users 
@@ -149,6 +154,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
             ON dbo.Users.role_id = dbo.Roles.role_id
             WHERE user_email = '{current_user}'; '''
     ).fetchone()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -171,6 +177,8 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
                 'message': 'Unauthorized.'
             }
         )
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     aff_id = cursor.execute(f"SELECT aff_id FROM Affiliations WHERE aff_name = '{edit_form.affiliation}'").fetchone()[0]
     query: str = f'''
                         UPDATE Users
@@ -197,10 +205,13 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
 # ------ Update point ------
 @router.get("/update_point", tags=['student'])
 def update_point(user_email: str, points: int, current_user: UserKey = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     current_point = cursor.execute(f"SELECT user_points FROM Users WHERE user_email = '{user_email}'").fetchone()[0]
     query: str = f'''UPDATE Users SET user_points = {current_point + points} WHERE user_email = '{user_email}' '''
     cursor.execute(query)
     conn.commit()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -215,8 +226,11 @@ def update_point(user_email: str, points: int, current_user: UserKey = Depends(g
 @router.put("/update_class", tags=['student'])
 def update_class(user_email: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
     query: str = f'''UPDATE Users user_student_class = '{_class}' WHERE user_email = '{user_email}' '''
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     cursor.execute(query)
     conn.commit()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -229,7 +243,10 @@ def update_class(user_email: str, _class: str, current_user: UserKey = Depends(g
 
 @router.put('/assign_class', tags=['teacher'])
 def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     cursor.execute(f'''INSERT INTO TeacherClassRelationship (class_id, teacher_id) VALUES ('{_class}', '{teacher_email}')' ''')
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
