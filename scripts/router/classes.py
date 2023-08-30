@@ -1,4 +1,4 @@
-from .crud import SQLiteManager
+from .crud import SQLManager
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -10,7 +10,7 @@ router = APIRouter(prefix='/class')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
 SECRET_KEY = os.environ.get('key')
 ALGORITHM = 'HS256'
-crud = SQLiteManager('default.sqlite')
+crud = SQLManager('Driver={ODBC Driver 17 for SQL Server};Server=tcp:%s,1433;Database=%s;Uid=%s;Pwd=%s;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'%(os.environ.get('SQL_SERVER'), os.environ.get('SQL_DB'), os.environ.get('SQL_USERNAME'), os.environ.get('SQL_PASSWORD')))
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -38,39 +38,37 @@ def class_root() -> Response:
 
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    level_id = crud.get(f'SELECT clv_id FROM ClassLevels WHERE clv_name = "{data.level}"')[0][0]
     query: str = f'''
                         INSERT INTO Classes (class_id, class_name, clv_id, class_desc) 
-                        VALUES ("{data.class_name}", "{data.class_name}", {level_id}, "{data.class_desc}")
+                        VALUES ('{data.class_name}', '{data.class_name}', {data.level}, '{data.class_desc}')
                   '''
-    crud.add(query)
+    crud.operate(query, 'add')
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             'message': 'successfully created class.',
-            'class': data.dict()
+            'class': data.__dict__
         }
     )
 
-@router.post('/update_class_detail', tags=['class'])
+@router.put('/update_class_detail', tags=['class'])
 def update_class_detail(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    level_id = crud.get(f'SELECT clv_id FROM ClassLevels WHERE clv_name = "{data.level}"')[0][0]
     query: str = f'''
-                        UPDATE Classes SET clv_id = {level_id}, class_desc = "{data.class_desc}"
-                        WHERE class_id = "{data.class_name}"
+                        UPDATE Classes SET clv_id = {data.level}, class_desc = '{data.class_desc}'
+                        WHERE class_id = '{data.class_name}'
                   '''
-    crud.edit(query)
+    crud.operate(query, 'edit')
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             'message': 'successfully updated class.',
-            'class': data.dict()
+            'class': data.__dict__
         }
     )
 
-@router.get('/assign_mission', tags=['class'])
+@router.put('/assign_mission', tags=['class'])
 def assign_mission(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
-    crud.add(f'INSERT INTO ClassMissionRelationship (class_id, mission_name) VALUES ("{_class}", "{mission_name}")')
+    crud.operate(f'''INSERT INTO ClassMissionRelationship (class_id, mission_name) VALUES ('{_class}', '{mission_name}') ''', 'add')
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
@@ -82,15 +80,19 @@ def assign_mission(_class: str, mission_name: str, current_user: any = Depends(g
 
 @router.get('/all_classes', tags=['class'])
 def get_all_classes(current_user: any = Depends(get_current_user)) -> Response:
-    _result = crud.get('SELECT * FROM Classes')
-    rewards = []
+    _result = crud.get('''SELECT class_name, class_desc, clv_name 
+                          FROM dbo.Classes 
+                          INNER JOIN dbo.ClassLevels
+                          ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
+                          ''')
+    classes = []
     for result in _result:
-        rewards.append({
+        classes.append({
                 'class_name': result[0],
-                'class_desc': result[3],
-                'class_level': crud.get(f'SELECT clv_name FROM ClassLevels WHERE clv_id = "{result[2]}"')[0][0]
+                'class_desc': result[1],
+                'class_level': result[2]
             })
     return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content={'classes': rewards}
+            content={'classes': classes}
         )

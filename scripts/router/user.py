@@ -10,14 +10,26 @@ import os
 import bcrypt
 from .tool import Tool
 from datetime import timedelta, datetime
+from cryptography.fernet import Fernet
+import pyodbc as odbc
 
 router = APIRouter(prefix='/user')
-crud = sql("default.sqlite")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET = os.environ.get("key")
+SECRET = os.environ.get('key')
 ALGORITHM = 'HS256'
-
+conn = odbc.connect('''Driver={ODBC Driver 17 for SQL Server};
+                       Server=tcp:%s,1433;
+                       Database=%s;Uid=%s;
+                       Pwd=%s;
+                       Encrypt=yes;
+                       TrustServerCertificate=no;Connection Timeout=30;
+                    '''%(os.environ.get('SQL_SERVER'), 
+                         os.environ.get('SQL_DB'), 
+                         os.environ.get('SQL_USERNAME'), 
+                         os.environ.get('SQL_PASSWORD')))
+cursor = conn.cursor()
+cipher = Fernet(SECRET.encode())
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -47,7 +59,8 @@ def root() -> Response:
 def register(data: RegisterForm) -> Response:
     ''' Param
     '''
-    user_check: any = crud.get(f''' SELECT user_email FROM Users WHERE user_email = "{data.email}"''')
+    user_check: any = cursor.execute(f"SELECT user_email FROM dbo.Users WHERE user_email = '{data.email}'").fetchone()
+    #user_check: any = cursor.execute('SELECT * FROM dbo.Affiliations;')
     if user_check:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,10 +68,8 @@ def register(data: RegisterForm) -> Response:
                 'message': 'This user has already registered.'
             }
         )
-    _bytes = data.pwd.encode('utf-8')
-    salt = bcrypt.gensalt()
-    aff_id = crud.get(f"SELECT aff_id FROM Affiliations WHERE aff_name = '{data.affiliation}'")[0][0]
-    if crud.add(f'''INSERT INTO 
+    aff_id = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{data.affiliation}'").fetchone()[0]
+    cursor.execute(f'''INSERT INTO 
                     Users
                     (
                         user_email, 
@@ -72,58 +83,80 @@ def register(data: RegisterForm) -> Response:
                     )
                     VALUES
                     (
-                        "{data.email}", 
-                        "{bcrypt.hashpw(_bytes, salt)}", 
-                        "{data.fname}", 
-                        "{data.surname}", 
-                        "{data.phone}", 
+                        '{data.email}', 
+                        '{cipher.encrypt(data.pwd.encode()).decode()}', 
+                        '{cipher.encrypt(data.fname.encode()).decode()}', 
+                        '{cipher.encrypt(data.surname.encode()).decode()}', 
+                        '{cipher.encrypt(data.phone.encode()).decode()}', 
                         {data.role}, 
                         {aff_id},
                         0
                     )
-                '''):
-        return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
-            content={
-                'message': 'Successfully registered',
-                'user': data.email,
-                'role': data.role
-            }
-        )
+                ''')
+    conn.commit()
+    return JSONResponse(
+                status_code=status.HTTP_201_CREATED,
+                content={
+                    'message': 'Successfully registered',
+                    'user': data.email,
+                    'role': data.role
+                }
+            )
 # -------------------
 
 # ------ Token ------
 @router.post("/login", tags=['user'])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user_data = Tool.get_user_detail(crud, form_data.username, login=True)
+    #user_data = Tool.get_user_detail(crud, form_data.username, login=True)
+    user_data: any = cursor.execute(f"SELECT * FROM dbo.Users WHERE user_email = '{form_data.username}'")
+    data = user_data.fetchone()
+    decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
+    if not data or form_data.password != decoded_pwd:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                'message': 'User has not registered.'
+            }
+        )
     access_token_expires = datetime.utcnow() + timedelta(minutes=15)
     access_token = Tool.create_token(
         data={"sub": form_data.username}, expires_delta=access_token_expires, secret=SECRET, algorithm='HS256'
     )
-    return JSONResponse(status_code=status.HTTP_202_ACCEPTED, 
-                        content={
-                                    "message": "Login completed.", 
-                                    "access_token": access_token,
-                                    "token_type": "bearer",
-                                    'expired_time': str(access_token_expires)
-                                }
+    print(f'| System notification | : User {form_data.username} has logged in @ {datetime.utcnow()}.')
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED, 
+        content={
+                    "message": "Login completed.", 
+                    "access_token": access_token,
+                    "token_type": "bearer",
+                    'expired_time': str(access_token_expires)
+        }
     )
 
 # ------------------
 @router.get("/get_user_detail", tags=['user'])
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
-    data = Tool.get_user_detail(crud, current_user, False)
+    user_data: any = cursor.execute(
+        f'''SELECT dbo.Users.user_email, dbo.Users.user_fname, dbo.Users.user_surname,  dbo.Users.user_phone, dbo.Roles.role_name
+            FROM dbo.Users 
+            INNER JOIN dbo.Roles 
+            ON dbo.Users.role_id = dbo.Roles.role_id
+            WHERE user_email = '{current_user}'; '''
+    ).fetchone()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            'message': 'Successfully fetched',
-            'fetched_data': data
-        }
+        'email': user_data[0],
+        'firstname': cipher.decrypt(user_data[1].encode()).decode(),
+        'surname': cipher.decrypt(user_data[2].encode()).decode(),
+        'phone': cipher.decrypt(user_data[3].encode()).decode(),
+        'role': user_data[4]
+    }
     )
 # ------------------
 
 # ------ Edit ------
-@router.post("/edit_user_detail", tags=['user'])
+@router.put("/edit_user_detail", tags=['user'])
 def edit_detail(current_user: any = Depends(get_current_user), edit_form: RegisterForm = None) -> Response:
     if current_user != edit_form.email:
         return JSONResponse(
@@ -132,24 +165,25 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
                 'message': 'Unauthorized.'
             }
         )
-    aff_id = crud.get(f"SELECT aff_id FROM Affiliations WHERE aff_name = '{edit_form.affiliation}'")[0][0]
+    aff_id = cursor.execute(f"SELECT aff_id FROM Affiliations WHERE aff_name = '{edit_form.affiliation}'").fetchone()[0]
     query: str = f'''
                         UPDATE Users
-                        SET user_email = "{edit_form.email}", 
-                            user_fname="{edit_form.fname}", 
-                            user_surname="{edit_form.surname}", 
-                            user_phone="{edit_form.phone}", 
+                        SET user_email = '{edit_form.email}', 
+                            user_fname='{edit_form.fname}', 
+                            user_surname='{edit_form.surname}', 
+                            user_phone='{edit_form.phone}', 
                             role_id={edit_form.role}, 
                             aff_id={aff_id} 
-                        WHERE user_email = "{current_user}"
+                        WHERE user_email = '{current_user}'
                   '''
-    crud.edit(query)
+    cursor.execute(query)
+    conn.commit()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             'message': 'successfully editted.',
             'user': current_user,
-            'data': edit_form.dict()
+            'updated_data': edit_form.__dict__
         }
     )
 # -----------------
@@ -157,9 +191,10 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
 # ------ Update point ------
 @router.get("/update_point", tags=['student'])
 def update_point(user_email: str, points: int, current_user: UserKey = Depends(get_current_user)) -> Response:
-    current_point = crud.get(f"SELECT user_points FROM Users WHERE user_email = '{user_email}'")[0][0]
-    query: str = f'UPDATE Users SET user_points = {current_point + points} WHERE user_email = "{user_email}"'
-    crud.edit(query)
+    current_point = cursor.execute(f"SELECT user_points FROM Users WHERE user_email = '{user_email}'").fetchone()[0]
+    query: str = f'''UPDATE Users SET user_points = {current_point + points} WHERE user_email = '{user_email}' '''
+    cursor.execute(query)
+    conn.commit()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -171,10 +206,11 @@ def update_point(user_email: str, points: int, current_user: UserKey = Depends(g
 # --------------------------
 
 # ------ Update class ------
-@router.get("/update_class", tags=['student'])
+@router.put("/update_class", tags=['student'])
 def update_class(user_email: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
-    query: str = f'UPDATE Users user_student_class = "{_class}" WHERE user_email = "{user_email}'
-    crud.edit(query)
+    query: str = f'''UPDATE Users user_student_class = '{_class}' WHERE user_email = '{user_email}' '''
+    cursor.execute(query)
+    conn.commit()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -185,9 +221,9 @@ def update_class(user_email: str, _class: str, current_user: UserKey = Depends(g
     )
 # --------------------------
 
-@router.get('/assign_class', tags=['teacher'])
+@router.put('/assign_class', tags=['teacher'])
 def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
-    crud.add(f'INSERT INTO TeacherClassRelationship (class_id, teacher_id) VALUES ("{_class}", "{teacher_email}")')
+    cursor.execute(f'''INSERT INTO TeacherClassRelationship (class_id, teacher_id) VALUES ('{_class}', '{teacher_email}')' ''')
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={

@@ -1,4 +1,7 @@
 import sqlite3
+import json
+import pyodbc as odbc
+from datetime import datetime
 
 class SQLiteManager:
     def __init__(self : object, db_name : str) -> None:
@@ -50,9 +53,36 @@ class SQLiteManager:
             }
         }
     
+class SQLManager:
+    def __init__(self, connection_string: str) -> None:
+        self.conn: any = odbc.connect(connection_string)
+        self.cursor: any = self.conn.cursor()
 
+    def get(self, query: str) -> list:
+        result: list = self.cursor.execute(query)
+        return result.fetchall()
+    
+    def operate(self, query: str, operation: str) -> bool | str:
+        try: 
+            self.cursor.execute(query)
+            self.conn.commit()
+            with ('log.json', 'a') as f:
+                data: dict = {
+                    'operation': operation,
+                    'query': query,
+                    'created_at': datetime.now()
+                }
+                f.write(json.dumps(data))
+            return True
+        except Exception as e:
+            return e
+        
 if __name__ == '__main__':
-    crud = SQLiteManager('/Users/magicbook/Desktop/OTUDY/EF-App-Backend/scripts/router/default.sqlite')
-    print(crud.get('SELECT * FROM ClassLevels'))
+    manager: SQLManager = SQLManager('Driver={ODBC Driver 17 for SQL Server};Server=tcp:otudy-team.database.windows.net,1433;Database=main-db;Uid=aketdOTUDY012023;Pwd=oT-,872%54Asdwzzsq>*90;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;')
+    print(manager.get('SELECT * FROM dbo.Users;'))
+        
+    
+        
+            
     
 

@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: fastapi
     environment:
-      - key=${otudy_backend_key}
+      - key=CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y=
     ports:
       - "8000:8000"
     # Other configuration options for your Python app container if needed

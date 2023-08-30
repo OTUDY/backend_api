@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from .body.token import UserKey
 from .body.mission import CreateMission
-from .crud import SQLiteManager
+from .crud import SQLiteManager, SQLManager
 import jwt
 import os
 
@@ -11,7 +11,7 @@ router = APIRouter(prefix='/mission')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
 SECRET_KEY = os.environ.get('key')
 ALGORITHM = 'HS256'
-crud = SQLiteManager('default.sqlite')
+crud = SQLManager('Driver={ODBC Driver 17 for SQL Server};Server=tcp:%s,1433;Database=%s;Uid=%s;Pwd=%s;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'%(os.environ.get('SQL_SERVER'), os.environ.get('SQL_DB'), os.environ.get('SQL_USERNAME'), os.environ.get('SQL_PASSWORD')))
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -41,11 +41,11 @@ def mission_root() -> Response:
 def create_mission(current_user: UserKey = Depends(get_current_user), data: CreateMission = None) -> Response:
     query: str = f'''
         INSERT INTO Missions
-        (mission_name, mission_desc, mission_points, mission_pic, mission_active_status)
+        (mission_name, mission_desc, mission_points, mission_active_status)
         VALUES
-        ("{data.mission_name}", "{data.mission_desc}", "{data.mission_points}", "{data.mission_pic}", {int(data.mission_active_status)})
+        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)})
     '''
-    if crud.add(query):
+    if crud.operate(query, 'add'):
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={
@@ -63,7 +63,7 @@ def create_mission(current_user: UserKey = Depends(get_current_user), data: Crea
     
 @router.get('/get_mission_detail/{mission_name}', tags=['missions'])
 def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_current_user)) -> Response:
-    query: str = f'SELECT * FROM Missions WHERE mission_name = "{mission_name}"'
+    query: str = f'''SELECT * FROM Missions WHERE mission_name = '{mission_name}' '''
     result = crud.get(query)
     if not result:
         return JSONResponse(
@@ -83,7 +83,7 @@ def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_cu
             status_code=status.HTTP_200_OK,
             content={
                 'message': 'Successfully fetched',
-                'data': response_body
+                'mission_data': response_body
             }
         )
 
@@ -104,18 +104,22 @@ def get_all_mission(current_user: any = Depends(get_current_user)) -> Response:
             content={'missions': missions}
         )
 
-@router.post('/update_mission_detail', tags=['missions'])
+@router.put('/update_mission_detail', tags=['missions'])
 def update_mission(current_user: any = Depends(get_current_user), data: CreateMission = None) -> Response:
-    query: str = f'''UPDATE Missions SET mission_desc = "{data.mission_desc}", 
-                                         mission_points = {data.mission_points}, 
-                                         mission_pic = "{data.mission_pic}", 
+    query: str = f'''UPDATE Missions SET mission_desc = '{data.mission_desc}', 
+                                         mission_points = {data.mission_points},  
                                          mission_active_status = {int(data.mission_active_status)}
-                     WHERE mission_name = "{data.mission_name}"'''
-    crud.edit(query)
+                     WHERE mission_name = '{data.mission_name}' '''
+    crud.operate(query, 'edit')
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             'message': 'successfully editted.',
-            'mission': data.dict()
+            'mission': data.__dict__
         }
     )
+
+@router.put('/upload_mission_image', tags=['missions'])
+def upload_image(current_user: any = Depends(get_current_user), image: UploadFile = File(...), mission_name: str = None) -> Response:
+    crud.operate(f"UPDATE Missions SET mission_pic = {image}", 'add')
+    return image

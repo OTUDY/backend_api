@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from scripts.router.user import router as user_router
-from scripts.router.mission import router as mission_router
-from scripts.router.classes import router as class_router
-from scripts.router.reward import router as reward_router
+from router.user import router as user_router
+from router.mission import router as mission_router
+from router.classes import router as class_router
+from router.reward import router as reward_router
 
 import uvicorn
 
