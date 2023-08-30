@@ -21,11 +21,12 @@ if driver:
     print(driver)
     driver = driver[-1]
 conn = pyodbc.connect('''Driver={%s};
-                       Server=tcp:%s,1433;
-                       Database=%s;Uid=%s;
+                       Server=tcp:%s;
+                       Database=%s;
+                       Uid=%s;
                        Pwd=%s;
                        Encrypt=yes;
-                       TrustServerCertificate=no;Connection Timeout=30;
+                       TrustServerCertificate=no;Connection Timeout=300;
                     '''%(driver,
                          os.environ.get('SQL_SERVER'), 
                          os.environ.get('SQL_DB'), 
