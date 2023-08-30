@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Response, status, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
-from .crud import SQLiteManager as sql
 from .body.user import RegisterForm, LoginForm
 from .body.token import UserKey
 from passlib.context import CryptContext
@@ -27,6 +26,8 @@ conn = odbc.connect('''Driver={ODBC Driver 17 for SQL Server};
                          os.environ.get('SQL_DB'), 
                          os.environ.get('SQL_USERNAME'), 
                          os.environ.get('SQL_PASSWORD')))
+#connection_string = 'Driver={ODBC Driver 17 for SQL Server};Server=tcp:otudy-team.database.windows.net,1433;Database=main-db;Uid=aketdOTUDY012023;Pwd=oT-,872%54Asdwzzsq>*90;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+#conn = odbc.connect(connection_string)
 cursor = conn.cursor()
 cipher = Fernet(SECRET.encode())
 async def get_current_user(token: str = Depends(oauth2_scheme)):

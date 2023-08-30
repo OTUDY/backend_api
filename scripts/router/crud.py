@@ -62,7 +62,7 @@ class SQLManager:
         result: list = self.cursor.execute(query)
         return result.fetchall()
     
-    def operate(self, query: str, operation: str) -> bool | str:
+    def operate(self, query: str, operation: str) -> any:
         try: 
             self.cursor.execute(query)
             self.conn.commit()
