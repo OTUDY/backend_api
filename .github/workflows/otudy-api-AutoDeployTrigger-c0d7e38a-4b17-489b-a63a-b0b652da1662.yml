@@ -1,0 +1,45 @@
+name: Trigger auto deployment for otudy-api
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '//**'
+    - '.github/workflows/otudy-api-AutoDeployTrigger-c0d7e38a-4b17-489b-a63a-b0b652da1662.yml'
+
+  # Allow mannually trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.OTUDYAPI_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.OTUDYAPI_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.OTUDYAPI_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: ca7a387aa9f3acr.azurecr.io
+          registryUsername: ${{ secrets.OTUDYAPI_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.OTUDYAPI_REGISTRY_PASSWORD }}
+          containerAppName: otudy-api
+          resourceGroup: otudy
+          imageToBuild: ca7a387aa9f3acr.azurecr.io/otudy-api:${{ github.sha }}
+          dockerfilePath: Dockerfile
+
+
