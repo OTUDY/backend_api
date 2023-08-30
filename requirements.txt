@@ -4,4 +4,4 @@ passlib
 bcrypt
 python-multipart
 uvicorn
-mysql-connector-python
+pyodbc

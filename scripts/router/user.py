@@ -7,7 +7,6 @@ from .body.user import RegisterForm, LoginForm
 from .body.token import UserKey
 from passlib.context import CryptContext
 import os
-import bcrypt
 from .tool import Tool
 from datetime import timedelta, datetime
 from cryptography.fernet import Fernet
