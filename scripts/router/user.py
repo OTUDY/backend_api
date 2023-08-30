@@ -107,7 +107,6 @@ def register(data: RegisterForm) -> Response:
 # ------ Token ------
 @router.post("/login", tags=['user'])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    #user_data = Tool.get_user_detail(crud, form_data.username, login=True)
     user_data: any = cursor.execute(f"SELECT * FROM dbo.Users WHERE user_email = '{form_data.username}'")
     data = user_data.fetchone()
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
