@@ -1,10 +1,10 @@
 # Use an official Python runtime as the base image
-FROM continuumio/miniconda3:latest
+FROM continuumio/miniconda3
 
 # Set the working directory in the container
-RUN sudo apt-get update
-RUN sudo apt-get install -y unixodbc
-
+RUN apt-get update
+RUN apt install -y make
+RUN apt-get install -y unixodbc
 # Copy the requirements file into the container at /app
 COPY requirements.txt .
 
