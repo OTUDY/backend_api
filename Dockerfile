@@ -1,5 +1,5 @@
 # Use an official Python runtime as the base image
-FROM python:3.9-slim
+FROM continuumio/miniconda3:latest
 
 # Set the working directory in the container
 RUN sudo apt-get update
