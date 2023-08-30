@@ -1,5 +1,4 @@
 from fastapi import status, HTTPException
-from fastapi.responses import JSONResponse
 from datetime import timedelta, datetime
 import jwt
 
