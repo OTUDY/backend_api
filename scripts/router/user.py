@@ -6,23 +6,28 @@ from .body.user import RegisterForm, LoginForm
 from .body.token import UserKey
 from passlib.context import CryptContext
 import os
-from .tool import Tool
 from datetime import timedelta, datetime
 from cryptography.fernet import Fernet
-import pyodbc as odbc
+import pyodbc
+from tool import Tool
 
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
 SECRET = os.environ.get('key')
 ALGORITHM = 'HS256'
-conn = odbc.connect('''Driver={ODBC Driver 17 for SQL Server};
+driver = pyodbc.drivers()
+if driver:
+    print(driver)
+    driver = driver[-1]
+conn = pyodbc.connect('''Driver={%s};
                        Server=tcp:%s,1433;
                        Database=%s;Uid=%s;
                        Pwd=%s;
                        Encrypt=yes;
                        TrustServerCertificate=no;Connection Timeout=30;
-                    '''%(os.environ.get('SQL_SERVER'), 
+                    '''%(driver,
+                         os.environ.get('SQL_SERVER'), 
                          os.environ.get('SQL_DB'), 
                          os.environ.get('SQL_USERNAME'), 
                          os.environ.get('SQL_PASSWORD')))
