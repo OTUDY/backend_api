@@ -116,7 +116,7 @@ def register(data: RegisterForm) -> Response:
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    data = cursor.execute('SELECT * FROM dbo.Roles').fetchall()
+    data = cursor.execute('SELECT * FROM dbo.Users').fetchall()
     return data
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
     if not data or form_data.password != decoded_pwd:
