@@ -70,8 +70,9 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
 
 @router.put('/update_class_detail', tags=['class'])
 def update_class_detail(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
+    clv_id = crud.get(f"SELECT clv_id FROM dbo.ClassLevel WHERE '{data.level}'")[0][0]
     query: str = f'''
-                        UPDATE Classes SET clv_id = {data.level}, class_desc = '{data.class_desc}'
+                        UPDATE Classes SET clv_id = {clv_id}, class_desc = '{data.class_desc}'
                         WHERE class_id = '{data.class_name}'
                   '''
     crud.operate(query, 'edit')
@@ -94,22 +95,3 @@ def assign_mission(_class: str, mission_name: str, current_user: any = Depends(g
             'mission': mission_name
         }
     )
-
-@router.get('/all_classes', tags=['class'])
-def get_all_classes(current_user: any = Depends(get_current_user)) -> Response:
-    _result = crud.get('''SELECT class_name, class_desc, clv_name 
-                          FROM dbo.Classes 
-                          INNER JOIN dbo.ClassLevels
-                          ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
-                          ''')
-    classes = []
-    for result in _result:
-        classes.append({
-                'class_name': result[0],
-                'class_desc': result[1],
-                'class_level': result[2]
-            })
-    return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={'classes': classes}
-        )

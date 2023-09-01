@@ -66,6 +66,7 @@ def register(data: RegisterForm) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     user_check: any = cursor.execute(f"SELECT user_email FROM dbo.Users WHERE user_email = '{data.email}'").fetchone()
+
     #user_check: any = cursor.execute('SELECT * FROM dbo.Affiliations;')
     if user_check:
         return JSONResponse(
@@ -74,18 +75,23 @@ def register(data: RegisterForm) -> Response:
                 'message': 'This user has already registered.'
             }
         )
+    table = "dbo.Teachers"
+    prefix = 'table'
+    if data.role == 2:
+        table = "dbo.Students"
+        prefix = 'student'
+    
     aff_id = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{data.affiliation}'").fetchone()[0]
     cursor.execute(f'''INSERT INTO 
-                    Users
+                    {table}
                     (
-                        user_email, 
-                        user_hashed_pwd, 
-                        user_fname, 
-                        user_surname, 
-                        user_phone, 
+                        {prefix}_email, 
+                        {prefix}_hashed_pwd, 
+                        {prefix}_fname, 
+                        {prefix}_surname, 
+                        {prefix}_phone, 
                         role_id, 
-                        aff_id,
-                        user_points
+                        aff_id
                     )
                     VALUES
                     (
@@ -95,8 +101,7 @@ def register(data: RegisterForm) -> Response:
                         '{cipher.encrypt(data.surname.encode()).decode()}', 
                         '{cipher.encrypt(data.phone.encode()).decode()}', 
                         {data.role}, 
-                        {aff_id},
-                        0
+                        {aff_id}
                     )
                 ''')
     conn.commit()
@@ -116,7 +121,7 @@ def register(data: RegisterForm) -> Response:
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    data = cursor.execute(f'''SELECT user_email, user_hashed_pwd FROM dbo.Users WHERE user_email = '{form_data.username}' ''').fetchone()
+    data = cursor.execute(f'''SELECT student_email, student_hashed_pwd FROM dbo.Teachers WHERE user_email = '{form_data.username}' ''').fetchone()
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
     if not data or form_data.password != decoded_pwd:
         return JSONResponse(
@@ -147,11 +152,11 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     user_data: any = cursor.execute(
-        f'''SELECT dbo.Users.user_email, dbo.Users.user_fname, dbo.Users.user_surname,  dbo.Users.user_phone, dbo.Roles.role_name
-            FROM dbo.Users 
+        f'''SELECT dbo.Teachers.teacher_email, dbo.Teachers.teacher_fname, dbo.Teachers.teacher_surname,  dbo.Teachers.teacher_phone, dbo.Roles.role_name
+            FROM dbo.Teachers 
             INNER JOIN dbo.Roles 
-            ON dbo.Users.role_id = dbo.Roles.role_id
-            WHERE user_email = '{current_user}'; '''
+            ON dbo.Teachers.role_id = dbo.Roles.role_id
+            WHERE teacher_email = '{current_user}'; '''
     ).fetchone()
     conn.close()
     return JSONResponse(
@@ -253,4 +258,17 @@ def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depend
             'teacher': current_user,
             'assigned_class': _class
         }
+    )
+
+@router.get("/get_assigned_classes", tags=['user'])
+def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    class_data: any = cursor.execute(
+        f'''SELECT * FROM dbo.TeacherClassRelationship WHERE user_email = '{current_user}' '''
+    ).fetchall()
+    conn.close()
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=class_data
     )

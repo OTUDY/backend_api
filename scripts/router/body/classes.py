@@ -2,5 +2,5 @@ from pydantic import BaseModel
 
 class ClassCreationForm(BaseModel):
     class_name: str
-    level: int
+    level: str
     class_desc: str
