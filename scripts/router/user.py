@@ -264,11 +264,11 @@ def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depend
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    class_data: any = cursor.execute(
+    class_data: list = cursor.execute(
         f'''SELECT * FROM dbo.TeacherClassRelationship WHERE teacher_id = '{current_user}' '''
     ).fetchall()
     conn.close()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=class_data
+        content={'classes': class_data}
     )
