@@ -265,13 +265,13 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     class_data: any = cursor.execute(
-        f''' SELECT dbo.TeacherClassRelationship.class_id, dbo.TeacherClassRelationship.teacher_id, dbo.Classes.class_desc, dbo.ClassLevels.clv_name
-                            FROM dbo.TeacherClassRelationship 
+        f''' SELECT dbo.TeachersClassesRelationship.class_id, dbo.TeachersClassesRelationship.teacher_id, dbo.Classes.class_desc, dbo.ClassLevels.clv_name
+                            FROM dbo.TeachersClassesRelationship 
                             INNER JOIN dbo.Classes
-                            ON dbo.TeacherClassRelationship.class_id = dbo.Classes.class_id
+                            ON dbo.TeachersClassesRelationship.class_id = dbo.Classes.class_id
                             INNER JOIN dbo.ClassLevels
                             ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
-                            WHERE dbo.TeacherClassRelationship.teacher_id = '{current_user}' ''' 
+                            WHERE dbo.TeachersClassesRelationship.teacher_id = '{current_user}' ''' 
     ).fetchall()
     conn.close()
     classes = []

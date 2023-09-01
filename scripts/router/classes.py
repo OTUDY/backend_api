@@ -63,7 +63,7 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
                   '''
     cursor.execute(query)
     conn.commit()
-    query2: str = f''' INSERT INTO dbo.TeacherClassRelationship
+    query2: str = f''' INSERT INTO dbo.TeachersClassesRelationship
                        VALUES ('{data.class_name}', '{current_user}')'''
     cursor.execute(query2)
     conn.commit()
