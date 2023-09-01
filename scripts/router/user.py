@@ -264,7 +264,7 @@ def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depend
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    class_data: list = cursor.execute(
+    class_data: any = cursor.execute(
         f''' SELECT dbo.TeacherClassRelationship.class_id, dbo.TeacherClassRelationship.teacher_id, dbo.Classes.class_desc, dbo.ClassLevels.clv_name
                             FROM dbo.TeacherClassRelationship 
                             INNER JOIN dbo.Classes

@@ -55,12 +55,13 @@ def class_root() -> Response:
 
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
+    clv_id = crud.get(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'")
     query: str = f'''
-                        INSERT INTO Classes (class_id, class_name, clv_id, class_desc) 
-                        VALUES ('{data.class_name}', '{data.class_name}', {data.level}, '{data.class_desc}')
+                        INSERT INTO dbo.Classes (class_id, class_name, clv_id, class_desc) 
+                        VALUES ('{data.class_name}', '{data.class_name}', {clv_id}, '{data.class_desc}')
                   '''
     crud.operate(query, 'add')
-    query2: str = f''' INSERT INTO TeacherClassRelationship
+    query2: str = f''' INSERT INTO dbo.TeacherClassRelationship
                        VALUES ('{data.class_name}', '{current_user}')'''
     crud.operate(query2, 'add')
     return JSONResponse(
