@@ -265,7 +265,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     class_data: any = cursor.execute(
-        f'''SELECT * FROM dbo.TeacherClassRelationship WHERE user_email = '{current_user}' '''
+        f'''SELECT * FROM dbo.TeacherClassRelationship WHERE teacher_id = '{current_user}' '''
     ).fetchall()
     conn.close()
     return JSONResponse(
