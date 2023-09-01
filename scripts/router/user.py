@@ -268,7 +268,16 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
         f'''SELECT * FROM dbo.TeacherClassRelationship WHERE teacher_id = '{current_user}' '''
     ).fetchall()
     conn.close()
+    classes = []
+    for j in class_data:
+        class_object = {
+            'class_name': j[0],
+            'teacher': j[1],
+            'class_desc': j[2],
+            'class_level': j[3]
+        }
+        classes.append(class_object)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content={'classes': class_data}
+        content={'classes': classes}
     )
