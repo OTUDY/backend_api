@@ -121,7 +121,7 @@ def register(data: RegisterForm) -> Response:
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    data = cursor.execute(f'''SELECT student_email, student_hashed_pwd FROM dbo.Teachers WHERE user_email = '{form_data.username}' ''').fetchone()
+    data = cursor.execute(f'''SELECT teacher_email, teacher_hashed_pwd FROM dbo.Teachers WHERE teacher_email = '{form_data.username}' ''').fetchone()
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
     if not data or form_data.password != decoded_pwd:
         return JSONResponse(
