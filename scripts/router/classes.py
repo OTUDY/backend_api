@@ -15,19 +15,6 @@ driver = pyodbc.drivers()
 if driver:
     print(driver)
     driver = driver[-1]
-crud = SQLManager('''Driver={%s};
-                       Server=tcp:%s,%d;
-                       Database=%s;
-                       Uid=%s;
-                       Pwd=%s;
-                       Encrypt=yes;
-                       TrustServerCertificate=no;Connection Timeout=300;
-                    '''%(driver,
-                         os.environ.get('AZURE_SQL_SERVER'),
-                         int(os.environ.get('AZURE_SQL_PORT')), 
-                         os.environ.get('AZURE_SQL_DATABASE'), 
-                         os.environ.get('AZURE_SQL_USER'), 
-                         os.environ.get('AZURE_SQL_PASSWORD')))
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -55,15 +42,32 @@ def class_root() -> Response:
 
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    clv_id = crud.get(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'")
+    conn = pyodbc.connect('''Driver={%s};
+                       Server=tcp:%s,%d;
+                       Database=%s;
+                       Uid=%s;
+                       Pwd=%s;
+                       Encrypt=yes;
+                       TrustServerCertificate=no;Connection Timeout=300;
+                    '''%(driver,
+                         os.environ.get('AZURE_SQL_SERVER'),
+                         int(os.environ.get('AZURE_SQL_PORT')), 
+                         os.environ.get('AZURE_SQL_DATABASE'), 
+                         os.environ.get('AZURE_SQL_USER'), 
+                         os.environ.get('AZURE_SQL_PASSWORD')))
+    cursor = conn.cursor()
+    clv_id = cursor.execute(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
     query: str = f'''
                         INSERT INTO dbo.Classes (class_id, class_name, clv_id, class_desc) 
                         VALUES ('{data.class_name}', '{data.class_name}', {clv_id}, '{data.class_desc}')
                   '''
-    crud.operate(query, 'add')
+    cursor.execute(query)
+    conn.commit()
     query2: str = f''' INSERT INTO dbo.TeacherClassRelationship
                        VALUES ('{data.class_name}', '{current_user}')'''
-    crud.operate(query2, 'add')
+    cursor.execute(query2)
+    conn.commit()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
