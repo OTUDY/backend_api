@@ -65,7 +65,7 @@ def register(data: RegisterForm) -> Response:
     '''
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    user_check: any = cursor.execute(f"SELECT user_email FROM dbo.Users WHERE user_email = '{data.email}'").fetchone()
+    user_check: any = cursor.execute(f"SELECT teacher_email FROM dbo.Teachers WHERE teacher_email = '{data.email}'").fetchone()
 
     #user_check: any = cursor.execute('SELECT * FROM dbo.Affiliations;')
     if user_check:
@@ -76,7 +76,7 @@ def register(data: RegisterForm) -> Response:
             }
         )
     table = "dbo.Teachers"
-    prefix = 'table'
+    prefix = 'teacher'
     if data.role == 2:
         table = "dbo.Students"
         prefix = 'student'
