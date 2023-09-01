@@ -28,7 +28,7 @@ def index() -> Response:
 
 app.include_router(user_router, prefix='/api/v1')
 #app.include_router(mission_router, prefix='/api/v1')
-#app.include_router(class_router, prefix="/api/v1")
+app.include_router(class_router, prefix="/api/v1")
 #app.include_router(reward_router, prefix="/api/v1")
 
 
