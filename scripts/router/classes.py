@@ -118,15 +118,15 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                                 dbo.Missions.mission_active_status,
                                 dbo.TeachersClassesRelationship.teacher_id
                         FROM dbo.Students
-                        INNER JOIN dbo.Classes
+                        LEFT JOIN dbo.Classes
                         ON dbo.Students.class_id = dbo.Classes.class_id
-                        INNER JOIN dbo.ClassMissionRelationship
+                        LEFT JOIN dbo.ClassMissionRelationship
                         ON dbo.Classes.class_id = dbo.ClassMissionRelationship.class_id
-                        INNER JOIN dbo.Missions
+                        LEFT JOIN dbo.Missions
                         ON dbo.Missions.mission_name = dbo.ClassMissionRelationship.mission_name
-                        INNER JOIN dbo.ClassLevels
+                        LEFT JOIN dbo.ClassLevels
                         ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
-                        INNER JOIN dbo.TeachersClassesRelationship
+                        LEFT JOIN dbo.TeachersClassesRelationship
                         ON dbo.TeachersClassesRelationship.class_id = dbo.Students.class_id
                         WHERE dbo.Classes.class_id = '{_class}' 
                     '''
