@@ -22,3 +22,11 @@ class EditForm(BaseModel):
     role: int = 0 | 1 | 2
     affiliation: str
     class_id: str
+
+class AddStudent(BaseModel):
+    username: str
+    pwd: str
+    firstname: str
+    surname: str
+    class_name: str
+    

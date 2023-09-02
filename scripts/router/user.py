@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Response, status, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
-from .body.user import RegisterForm, LoginForm
+from .body.user import RegisterForm, LoginForm, AddStudent
 from .body.token import UserKey
 from passlib.context import CryptContext
 import os
@@ -286,4 +286,38 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={'classes': classes}
+    )
+
+@router.post('/register_student')
+def add_user(student_info: AddStudent) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cipher = Fernet(SECRET)
+    student_check = cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{student_info.username}' ''').fetchone()
+    if student_check:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                'message': 'User has been registered, proceed to login.'
+            }
+        )
+    cursor.execute(f'''
+                       INSERT INTO dbo.Students
+                       VALUES (
+                          '{student_info.username}',
+                          '{cipher.encrypt(student_info.firstname.encode()).decode()}',
+                          '{cipher.encrypt(student_info.surname.encode()).decode()}',
+                          0,
+                          '{student_info.class_name}',
+                          '{cipher.encrypt(student_info.pwd.encode()).decode()}'
+                       ) 
+                   ''')
+    conn.commit()
+    conn.close()
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={
+            'message': 'created student account',
+            'student_username': student_info.username
+        }
     )

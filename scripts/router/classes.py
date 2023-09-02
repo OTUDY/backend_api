@@ -15,6 +15,19 @@ driver = pyodbc.drivers()
 if driver:
     print(driver)
     driver = driver[-1]
+connection_string = '''Driver={%s};
+                       Server=tcp:%s,%d;
+                       Database=%s;
+                       Uid=%s;
+                       Pwd=%s;
+                       Encrypt=yes;
+                       TrustServerCertificate=no;Connection Timeout=300;
+                    '''%(driver,
+                         os.environ.get('AZURE_SQL_SERVER'),
+                         int(os.environ.get('AZURE_SQL_PORT')), 
+                         os.environ.get('AZURE_SQL_DATABASE'), 
+                         os.environ.get('AZURE_SQL_USER'), 
+                         os.environ.get('AZURE_SQL_PASSWORD'))
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -42,19 +55,7 @@ def class_root() -> Response:
 
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    conn = pyodbc.connect('''Driver={%s};
-                       Server=tcp:%s,%d;
-                       Database=%s;
-                       Uid=%s;
-                       Pwd=%s;
-                       Encrypt=yes;
-                       TrustServerCertificate=no;Connection Timeout=300;
-                    '''%(driver,
-                         os.environ.get('AZURE_SQL_SERVER'),
-                         int(os.environ.get('AZURE_SQL_PORT')), 
-                         os.environ.get('AZURE_SQL_DATABASE'), 
-                         os.environ.get('AZURE_SQL_USER'), 
-                         os.environ.get('AZURE_SQL_PASSWORD')))
+    conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     clv_id = cursor.execute(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
     query: str = f'''
@@ -104,3 +105,9 @@ def assign_mission(_class: str, mission_name: str, current_user: any = Depends(g
             'mission': mission_name
         }
     )
+
+@router.get('/get_class_meta_data', tags=['class'])
+def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cursor.execute(''' SELECT * FROM''')
