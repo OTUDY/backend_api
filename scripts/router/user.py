@@ -288,7 +288,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
         content={'classes': classes}
     )
 
-@router.post('/register_student')
+@router.post('/register_student', tags=['student'])
 def add_user(student_info: AddStudent) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()

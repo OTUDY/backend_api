@@ -110,4 +110,64 @@ def assign_mission(_class: str, mission_name: str, current_user: any = Depends(g
 def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(''' SELECT * FROM''')
+    cursor.execute(f''' SELECT  dbo.Students.student_username, 
+                                dbo.Classes.class_id, 
+                                dbo.ClassLevels.clv_name, 
+                                dbo.Missions.mission_name,
+                                dbo.Missions.mission_subject,
+                                dbo.Missions.mission_active_status,
+                                dbo.TeachersClassesRelationship.teacher_id
+                        FROM dbo.Students
+                        INNER JOIN dbo.Classes
+                        ON dbo.Students.class_id = dbo.Classes.class_id
+                        INNER JOIN dbo.ClassMissionRelationship
+                        ON dbo.Classes.class_id = dbo.ClassMissionRelationship.class_id
+                        INNER JOIN dbo.Missions
+                        ON dbo.Missions.mission_name = dbo.ClassMissionRelationship.mission_name
+                        INNER JOIN dbo.ClassLevels
+                        ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
+                        INNER JOIN dbo.TeachersClassesRelationship
+                        ON dbo.TeachersClassesRelationship.class_id = dbo.Students.class_id
+                        WHERE dbo.Classes.class_id = '{_class}' 
+                    '''
+                    )
+    result = cursor.fetchall()
+    if not result:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                'message': 'Class not found.'
+            }
+        )
+    students = []
+    teachers = []
+    missions = {
+        'mathematic': [],
+        'chemistry': [],
+        'thai': [],
+        'english': []
+    }
+    activities = []
+    for class_data in result:
+        students.append(class_data[0])
+        if class_data[-2] not in teachers:
+            teachers.append(class_data[-2])
+        missions[class_data[-3]].append(class_data[3])
+        if class_data[-1] not in activities:
+            activities.append(class_data[-1])
+    class_level = class_data[2]
+    response_data = {
+        'className': _class,
+        'classTeachers': teachers,
+        'classStudents': students,
+        'classMissions': missions,
+        'classLevel': class_level,
+        'classActivities': activities,
+        'classGroups': []
+    }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=response_data
+    )
+
+    
