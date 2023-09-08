@@ -10,9 +10,9 @@ from datetime import timedelta, datetime
 from cryptography.fernet import Fernet
 import pyodbc
 from .tool import Tool
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv()
 
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
