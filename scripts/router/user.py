@@ -10,6 +10,9 @@ from datetime import timedelta, datetime
 from cryptography.fernet import Fernet
 import pyodbc
 from .tool import Tool
+from dotenv import load_dotenv
+
+load_dotenv()
 
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -59,7 +62,7 @@ def root() -> Response:
 # --------------------
 
 # ------ Register ------
-@router.post('/register/', tags=['user'])
+@router.post('/teacher/register/', tags=['user'])
 def register(data: RegisterForm) -> Response:
     ''' Param
     '''
@@ -117,11 +120,17 @@ def register(data: RegisterForm) -> Response:
 # -------------------
 
 # ------ Token ------
-@router.post("/login", tags=['user'])
+@router.post("/login", tags=['user', 'teacher', 'student'])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    data = cursor.execute(f'''SELECT teacher_email, teacher_hashed_pwd FROM dbo.Teachers WHERE teacher_email = '{form_data.username}' ''').fetchone()
+    data = ('test', 'test')
+    if form_data.client_id == '2':
+        print('User is student.')
+        data = cursor.execute(f'''SELECT student_username, student_hashed_pwd FROM dbo.Students WHERE student_username = '{form_data.username}' ''').fetchone()
+    elif form_data.client_id == '1':
+        print('User is teacher.')
+        data = cursor.execute(f'''SELECT teacher_email, teacher_hashed_pwd FROM dbo.Teachers WHERE teacher_email = '{form_data.username}' ''').fetchone()
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
     if not data or form_data.password != decoded_pwd:
         return JSONResponse(
@@ -147,7 +156,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
 
 # ------------------
-@router.get("/get_user_detail", tags=['user'])
+@router.get("/teacher/get_teacher_detail", tags=['user', 'teacher'])
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
@@ -159,6 +168,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
             WHERE teacher_email = '{current_user}'; '''
     ).fetchone()
     conn.close()
+    cipher = Fernet(SECRET.encode())
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -172,7 +182,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
 # ------------------
 
 # ------ Edit ------
-@router.put("/edit_user_detail", tags=['user'])
+@router.put("/teacher/edit_user_detail", tags=['user', 'teacher'])
 def edit_detail(current_user: any = Depends(get_current_user), edit_form: RegisterForm = None) -> Response:
     if current_user != edit_form.email:
         return JSONResponse(
@@ -183,16 +193,17 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
         )
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    aff_id = cursor.execute(f"SELECT aff_id FROM Affiliations WHERE aff_name = '{edit_form.affiliation}'").fetchone()[0]
+    aff_id = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{edit_form.affiliation}'").fetchone()[0]
     query: str = f'''
-                        UPDATE Users
-                        SET user_email = '{edit_form.email}', 
-                            user_fname='{edit_form.fname}', 
-                            user_surname='{edit_form.surname}', 
-                            user_phone='{edit_form.phone}', 
+                        UPDATE dbo.Teachers
+                        SET teacher_email = '{edit_form.email}',
+                            teacher_hashed_pwd = '{cipher.encrypt(edit_form.pwd.encode()).decode()}', 
+                            teacher_fname='{cipher.encrypt(edit_form.fname.encode()).decode()}', 
+                            teacher_surname='{cipher.encrypt(edit_form.surname.encode()).decode()}', 
+                            teacher_phone='{cipher.encrypt(edit_form.phone.encode()).decode()}', 
                             role_id={edit_form.role}, 
                             aff_id={aff_id} 
-                        WHERE user_email = '{current_user}'
+                        WHERE teacher_email = '{edit_form.email}'
                   '''
     cursor.execute(query)
     conn.commit()
@@ -211,8 +222,8 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
 def update_point(user_email: str, points: int, current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    current_point = cursor.execute(f"SELECT user_points FROM Users WHERE user_email = '{user_email}'").fetchone()[0]
-    query: str = f'''UPDATE Users SET user_points = {current_point + points} WHERE user_email = '{user_email}' '''
+    current_point = cursor.execute(f"SELECT student_points FROM dbo.Students WHERE student_username = '{user_email}'").fetchone()[0]
+    query: str = f'''UPDATE dbo.Students SET student_points = {current_point + points} WHERE student_username = '{user_email}' '''
     cursor.execute(query)
     conn.commit()
     conn.close()
@@ -229,7 +240,7 @@ def update_point(user_email: str, points: int, current_user: UserKey = Depends(g
 # ------ Update class ------
 @router.put("/update_class", tags=['student'])
 def update_class(user_email: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
-    query: str = f'''UPDATE Users user_student_class = '{_class}' WHERE user_email = '{user_email}' '''
+    query: str = f'''UPDATE dbo.Students SET class_id = '{_class}' WHERE student_username = '{user_email}' '''
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     cursor.execute(query)
@@ -245,11 +256,11 @@ def update_class(user_email: str, _class: str, current_user: UserKey = Depends(g
     )
 # --------------------------
 
-@router.put('/assign_class', tags=['teacher'])
+@router.get('/assign_class', tags=['teacher'])
 def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(f'''INSERT INTO TeacherClassRelationship (class_id, teacher_id) VALUES ('{_class}', '{teacher_email}')' ''')
+    cursor.execute(f'''INSERT INTO dbo.TeachersClassesRelationship (class_id, teacher_id) VALUES ('{_class}', '{teacher_email}')' ''')
     conn.close()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
@@ -260,7 +271,7 @@ def assign_class(teacher_email: str, _class: str, current_user: UserKey = Depend
         }
     )
 
-@router.get("/get_assigned_classes", tags=['user'])
+@router.get("/teacher/get_assigned_classes", tags=['user', 'teacher'])
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
@@ -288,7 +299,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
         content={'classes': classes}
     )
 
-@router.post('/register_student', tags=['student'])
+@router.post('/student/register', tags=['student'])
 def add_user(student_info: AddStudent) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
@@ -321,3 +332,22 @@ def add_user(student_info: AddStudent) -> Response:
             'student_username': student_info.username
         }
     )
+
+@router.get('/student/leaderboard', tags=['reward', 'student', 'redemption'])
+async def get_leaderboard(current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    result = cursor.execute('''  SELECT student_username, student_points
+                                 FROM dbo.Students
+                                 ORDER BY student_points DESC
+                            ''')
+    leaderboard = {}
+    for score in result:
+        leaderboard[score[0]] = {
+            'points': score[1]
+        }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=leaderboard
+    )
+    

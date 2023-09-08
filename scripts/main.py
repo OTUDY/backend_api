@@ -27,9 +27,9 @@ def index() -> Response:
     return JSONResponse(status_code=status.HTTP_200_OK, content={'message': 'Accessing main route index.'})
 
 app.include_router(user_router, prefix='/api/v1')
-#app.include_router(mission_router, prefix='/api/v1')
+app.include_router(mission_router, prefix='/api/v1')
 app.include_router(class_router, prefix="/api/v1")
-#app.include_router(reward_router, prefix="/api/v1")
+app.include_router(reward_router, prefix="/api/v1")
 
 
 if __name__ == '__main__':

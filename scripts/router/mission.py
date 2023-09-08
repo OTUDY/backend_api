@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -16,7 +17,7 @@ driver = pyodbc.drivers()
 if driver:
     print(driver)
     driver = driver[-1]
-crud = SQLManager('''Driver={%s};
+connection_string = '''Driver={%s};
                        Server=tcp:%s,%d;
                        Database=%s;
                        Uid=%s;
@@ -28,7 +29,7 @@ crud = SQLManager('''Driver={%s};
                          int(os.environ.get('AZURE_SQL_PORT')), 
                          os.environ.get('AZURE_SQL_DATABASE'), 
                          os.environ.get('AZURE_SQL_USER'), 
-                         os.environ.get('AZURE_SQL_PASSWORD')))
+                         os.environ.get('AZURE_SQL_PASSWORD'))
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -54,48 +55,48 @@ def mission_root() -> Response:
         }
     )
 
-@router.post('/create', tags=['missions'])
-def create_mission(current_user: UserKey = Depends(get_current_user), data: CreateMission = None) -> Response:
+@router.post('/create_mission', tags=['missions'])
+async def create_mission(current_user: UserKey = Depends(get_current_user), data: CreateMission = None) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     query: str = f'''
         INSERT INTO Missions
         (mission_name, mission_desc, mission_points, mission_active_status)
         VALUES
         ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)})
     '''
-    if crud.operate(query, 'add'):
-        return JSONResponse(
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
+    return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={
                 'message': 'Successfully created the mission.',
                 'mission_name': data.mission_name
             }
         )
-    else:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={
-                'message': 'Unable to proceed.',
-            }
-        )
     
-@router.get('/get_mission_detail/{mission_name}', tags=['missions'])
+@router.get('/get_mission_detail/', tags=['missions'])
 def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_current_user)) -> Response:
-    query: str = f'''SELECT * FROM Missions WHERE mission_name = '{mission_name}' '''
-    result = crud.get(query)
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    query: str = f'''SELECT * FROM dbo.Missions WHERE mission_name = '{mission_name}' '''
+    result = cursor.execute(query).fetchone()
     if not result:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
-                'message': 'Unable to proceed.'
+                'message': 'Mission is not found.'
             }
         )
     response_body = {
-        'mission_name': result[0][0],
-        'mission_desc': result[0][1],
-        'mission_redeem_points': result[0][2],
-        'mission_pic': result[0][3],
-        'mission_active_status': result[0][4]
+        'mission_name': result[0],
+        'mission_desc': result[1],
+        'mission_redeem_points': result[2],
+        'mission_pic': result[3],
+        'mission_active_status': result[4]
     }
+    conn.close()
     return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
@@ -104,9 +105,26 @@ def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_cu
             }
         )
 
+@router.delete('/delete_mission', tags=['missions'])
+async def delete_mission(mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cursor.execute(f''' DELETE FROM dbo.ClassMissionRelationship WHERE mission_name = '{mission_name}' ''')
+    cursor.execute(f''' DELETE FROM dbo.Missions WHERE mission_name = '{mission_name}' ''')
+    conn.commit()
+    conn.close()
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'message': f"successfully deleted mission {mission_name} "
+        }
+    )
+
 @router.get('/get_all_missions', tags=['missions'])
 def get_all_mission(current_user: any = Depends(get_current_user)) -> Response:
-    _result = crud.get('SELECT * FROM Missions')
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    _result = cursor.execute('SELECT * FROM dbo.Missions').fetchall()
     missions = []
     for result in _result:
         missions.append({
@@ -116,18 +134,23 @@ def get_all_mission(current_user: any = Depends(get_current_user)) -> Response:
                 'mission_pic': result[3],
                 'mission_active_status': result[4]
             })
+    conn.close()
     return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={'missions': missions}
         )
 
 @router.put('/update_mission_detail', tags=['missions'])
-def update_mission(current_user: any = Depends(get_current_user), data: CreateMission = None) -> Response:
+async def update_mission(current_user: any = Depends(get_current_user), data: CreateMission = None) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
     query: str = f'''UPDATE Missions SET mission_desc = '{data.mission_desc}', 
                                          mission_points = {data.mission_points},  
                                          mission_active_status = {int(data.mission_active_status)}
                      WHERE mission_name = '{data.mission_name}' '''
-    crud.operate(query, 'edit')
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
@@ -138,5 +161,123 @@ def update_mission(current_user: any = Depends(get_current_user), data: CreateMi
 
 @router.put('/upload_mission_image', tags=['missions'])
 def upload_image(current_user: any = Depends(get_current_user), image: UploadFile = File(...), mission_name: str = None) -> Response:
-    crud.operate(f"UPDATE Missions SET mission_pic = {image}", 'add')
-    return image
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cursor.execute(f"UPDATE Missions SET mission_pic = {image}")
+    conn.commit()
+    conn.close()
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'message': f"Updated mission {mission_name}'s image."
+        }
+    )
+
+@router.get('/assign_mission_to_student', tags=['missions', 'student'])
+async def assign_mission_to_student(mission_name: str, student_id: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    try: 
+        cursor.execute(f''' INSERT INTO dbo.StudentsMissionsRelationship
+                            VALUES ('{student_id}', '{mission_name}', '{str(datetime.utcnow())}', 2)
+                        ''')
+        conn.commit()
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                'message': f'student {student_id} has started {mission_name}.'
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'error': str(e)
+            }
+        )
+    
+@router.get('/update_mission_student_status', tags=['missions', 'student'])
+async def update_mission_status(student_id: str, mission_name: str, status_: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    if status_ == 'deny': 
+        try :
+            cursor.execute(f''' UPDATE dbo.StudentsMissionsRelationship 
+                                SET status = 0
+                                WHERE mission_name = '{mission_name}' AND student_id = '{student_id}' ''')
+            conn.commit()
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    'message': 'Mission request has been denied.'
+                }
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    'message': 'Unable to proceed, try again or check your query.',
+                    'error': str(e)
+                }
+            )
+    elif status_ == 'approve': 
+        try :
+            current_points = cursor.execute(f''' SELECT student_points + mission_points
+                                                FROM dbo.Students
+                                                INNER JOIN dbo.StudentsMissionsRelationship
+                                                ON dbo.StudentsMissionsRelationship.student_id = dbo.Students.student_username
+                                                INNER JOIN dbo.Missions
+                                                ON dbo.StudentsMissionsRelationship.mission_name = dbo.Missions.mission_name
+                                                WHERE dbo.StudentsMissionsRelationship.student_id = '{student_id}' AND dbo.StudentsMissionsRelationship.mission_name = '{mission_name}'
+                                            ''')\
+                                            .fetchone()[0]
+            cursor.execute(f''' UPDATE dbo.StudentsMissionsRelationship 
+                                SET status = 1
+                                WHERE mission_name = '{mission_name}' AND student_id = '{student_id}' ''')
+            cursor.execute(f''' UPDATE dbo.Students
+                                SET student_points = {current_points}
+                                WHERE student_username = '{student_id}'
+                            ''')
+            conn.commit()
+            
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    'message': 'Mission request has been approved'
+                }
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    'message': 'Unable to proceed, try again or check your query.',
+                    'error': str(e)
+                }
+            )
+        
+@router.get('/get_all_on_going_missions', tags=['missions', 'student'])
+async def get_all_pending_approval_redemptions(current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    _result = cursor.execute('''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points
+                                FROM dbo.StudentsMissionsRelationship
+                                INNER JOIN dbo.Missions
+                                ON dbo.Missions.mission_name = dbo.StudentsMissionsRelationship.mission_name
+                                WHERE dbo.StudentsMissionsRelationship.status = 2''').fetchall()
+    redeems = {}
+    for index, redempt in enumerate(_result):
+        key = f'missioner_{index}'
+        redeems[key] = {
+            'student': redempt[0],
+            'mission_name': redempt[1],
+            'status': redempt[2],
+            'started_date': redempt[3],
+            'description': redempt[4],
+            'points': redempt[5]
+        }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'on_going_missions': redeems
+        }
+    )

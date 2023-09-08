@@ -6,12 +6,31 @@ from .crud import SQLiteManager
 import jwt
 from datetime import datetime
 import os
+import pyodbc
 
 router = APIRouter(prefix='/reward')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
 SECRET_KEY = os.environ.get('key')
 ALGORITHM = 'HS256'
-crud = SQLiteManager('default.sqlite')
+driver = pyodbc.drivers()
+if driver:
+    print(driver)
+    driver = driver[-1]
+connection_string = '''Driver={%s};
+                       Server=tcp:%s,%d;
+                       Database=%s;
+                       Uid=%s;
+                       Pwd=%s;
+                       Encrypt=yes;
+                       TrustServerCertificate=no;Connection Timeout=300;
+                    '''%(driver,
+                         os.environ.get('AZURE_SQL_SERVER'),
+                         int(os.environ.get('AZURE_SQL_PORT')), 
+                         os.environ.get('AZURE_SQL_DATABASE'), 
+                         os.environ.get('AZURE_SQL_USER'), 
+                         os.environ.get('AZURE_SQL_PASSWORD'))
+conn = pyodbc.connect(connection_string)
+cursor = conn.cursor()
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -39,26 +58,34 @@ def reward_root() -> Response:
 
 @router.post('/create_reward', tags=['rewards'])
 def create_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
-    query: str = f''' INSERT INTO Rewards (reward_name, reward_desc, reward_pic, reward_spent_points, reward_active_status)
-                      VALUES ("{data.reward_name}", "{data.reward_desc}", "{data.reward_pic}", {data.reward_spent_points}, {int(data.reward_active_status)})'''
-    crud.add(query)
+    query: str = f''' INSERT INTO dbo.Rewards (reward_name, reward_desc, reward_spent_points, reward_active_status)
+                      VALUES ('{data.reward_name}', '{data.reward_desc}', {data.reward_spent_points}, {int(data.reward_active_status)})'''
+    cursor.execute(query)
+    conn.commit()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             'message': 'successfully created a reward.',
-            'reward': data.dict()
+            'reward': data.__dict__
         }
     )
 
-@router.get('/get_reward_detail/{reward_name}', tags=['rewards'])
+@router.get('/get_reward_detail/', tags=['rewards'])
 def get_reward_detail(reward_name: str, current_user: any = Depends(get_current_user)) -> Response:
-    result = crud.get(f"SELECT * FROM Rewards WHERE reward_name = '{reward_name}'")
+    result = cursor.execute(f"SELECT * FROM dbo.Rewards WHERE reward_name = '{reward_name}'").fetchone()
+    if not result:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                'message': 'reward not found.'
+            }
+        )
     response = {
-        'reward_name': result[0][0],
-        'reward_desc': result[0][1],
-        'reward_pic': result[0][2],
-        'reward_spent_points': result[0][3],
-        'reward_active_status': result[0][4]
+        'reward_name': result[0],
+        'reward_desc': result[1],
+        'reward_pic': result[2],
+        'reward_spent_points': result[3],
+        'reward_active_status': result[4]
     }
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -67,41 +94,86 @@ def get_reward_detail(reward_name: str, current_user: any = Depends(get_current_
         }
     )
 
-@router.post('/update_reward_detail', tags=['rewards'])
+@router.put('/update_reward_detail', tags=['rewards'])
 def update_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
-    crud.edit(f'''UPDATE Rewards SET reward_name = '{data.reward_name}', 
+    cursor.execute(f'''UPDATE dbo.Rewards SET reward_name = '{data.reward_name}', 
                                    reward_desc = '{data.reward_desc}', 
                                    reward_pic = '{data.reward_pic}', 
                                    reward_spent_points = {data.reward_spent_points}, 
                                    reward_active_status = {int(data.reward_active_status)}
-                  WHERE reward_name = "{data.reward_name}"'''
+                  WHERE reward_name = '{data.reward_name}' '''
     )
+    conn.commit()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             'message': 'Successfully updated the reward.',
-            'reward': data.dict()
+            'reward': data.__dict__
         }
     )
 
-@router.get('/redeem', tags=['rewards'])
+@router.delete('/reward_name', tags=['rewards'])
+async def delete_reward(reward_name: str, current_user: any = Depends(get_current_user)) -> Response:
+    try: 
+        cursor.execute(f"DELETE FROM dbo.Rewards WHERE reward_name = '{reward_name}' ")
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': f'successfully deleted reward {reward_name}'
+            }
+        )
+    except:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                'message': 'reward is not found.'
+            }
+        )
+
+@router.get('/redeem', tags=['rewards', 'redemption'])
 def redeem(user_email: str, reward_name: str, current_user: any = Depends(get_current_user)) -> Response:
-    redeem_point = crud.get(f'SELECT reward_spent_points FROM Rewards WHERE reward_name = "{reward_name}"')[0][0]
-    current_point = crud.get(f'SELECT user_points FROM Users WHERE user_email = "{user_email}"')[0][0]
-    crud.edit(f'UPDATE Users SET user_points = {current_point - redeem_point} WHERE user_email = "{user_email}"')
-    crud.add(f'INSERT INTO RewardsRedemption (student_id, reward_id, timestamp) VALUES ("{user_email}", "{reward_name}", "{datetime.utcnow()}")')
-    return JSONResponse(
-        status_code=status.HTTP_201_CREATED,
-        content={
-            'user': user_email,
-            'current_points': current_point - redeem_point,
-            'redeem_time': str(datetime.utcnow())
-        }
-    )
+    redeem_point = cursor.execute(f'''SELECT reward_spent_points FROM dbo.Rewards WHERE reward_name = '{reward_name}' ''').fetchone()[0]
+    current_point = cursor.execute(f'''SELECT student_points FROM dbo.Students WHERE student_username = '{user_email}' ''').fetchone()[0]
+    if current_point < redeem_point:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'message': 'student has not enough points to redeem.'
+            }
+        )
+    try :
+        #cursor.execute(f'''UPDATE Users SET user_points = {current_point - redeem_point} WHERE user_email = '{user_email}' ''')
+        cursor.execute(f'''INSERT INTO RewardsRedemption (student_id, reward_id, timestamp, status) VALUES ('{user_email}', '{reward_name}', '{str(datetime.utcnow())}', 2)''')
+        conn.commit()
+        teacher = cursor.execute(f''' SELECT teacher_id 
+                                      FROM dbo.TeachersClassesRelationship
+                                      INNER JOIN dbo.Students
+                                      ON dbo.Students.class_id = dbo.TeachersClassesRelationship.class_id
+                                      WHERE dbo.Students.student_username = '{user_email}' ''')\
+                        .fetchone()[0]
+        
+        # Doing notify logic
 
-@router.get('/all_rewards', tags=['rewards'])
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': 'pending approval for this redeem, waiting for teacher to approve.',
+                'redeemer': user_email,
+                'approver': teacher
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'message': 'Unable to proceed.',
+                'error': str(e)
+            }
+        )
+
+@router.get('/get_all_rewards', tags=['rewards'])
 def get_all_reward(current_user: any = Depends(get_current_user)) -> Response:
-    _result = crud.get('SELECT * FROM Rewards')
+    _result = cursor.execute('SELECT * FROM dbo.Rewards').fetchall()
     rewards = []
     for result in _result:
         rewards.append({
@@ -115,3 +187,85 @@ def get_all_reward(current_user: any = Depends(get_current_user)) -> Response:
             status_code=status.HTTP_200_OK,
             content={'rewards': rewards}
         )
+
+@router.get('/get_all_pending_approval_redemptions', tags=['rewards', 'redemption'])
+async def get_all_pending_approval_redemptions(current_user: any = Depends(get_current_user)) -> Response:
+    _result = cursor.execute('''SELECT student_id, reward_id, status, timestamp, reward_desc, reward_spent_points
+                                FROM dbo.RewardsRedemption
+                                INNER JOIN dbo.Rewards
+                                ON dbo.Rewards.reward_name = dbo.RewardsRedemption.reward_id
+                                WHERE dbo.RewardsRedemption.status = 2''').fetchall()
+    redeems = {}
+    for index, redempt in enumerate(_result):
+        key = f'reward_{index}'
+        redeems[key] = {
+            'redeemer': redempt[0],
+            'reward': redempt[1],
+            'redeemed_time': redempt[3],
+            'reward_desc': redempt[4],
+            'reward_points': redempt[5]
+        }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'redeems': redeems
+        }
+    )
+    
+@router.get('/update_redemption_status', tags=['rewards', 'redemption'])
+async def update_status(redeemer: str, reward_id: str, status_: str, current_user: any = Depends(get_current_user)) -> Response:
+    if status_ == 'deny': 
+        try :
+            cursor.execute(f''' UPDATE dbo.RewardsRedemption 
+                                SET status = 0
+                                WHERE reward_id = '{reward_id}' AND student_id = '{redeemer}' ''')
+            conn.commit()
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    'message': 'Redemption request has been denied.'
+                }
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    'message': 'Unable to proceed, try again or check your query.',
+                    'error': str(e)
+                }
+            )
+    elif status_ == 'approve': 
+        try :
+            current_points = cursor.execute(f''' SELECT student_points - reward_spent_points
+                                                FROM dbo.Students
+                                                INNER JOIN dbo.RewardsRedemption
+                                                ON dbo.RewardsRedemption.student_id = dbo.Students.student_username
+                                                INNER JOIN dbo.Rewards
+                                                ON dbo.RewardsRedemption.reward_id = dbo.Rewards.reward_name
+                                                WHERE dbo.RewardsRedemption.student_id = '{redeemer}' AND dbo.RewardsRedemption.reward_id = '{reward_id}'
+                                            ''')\
+                                            .fetchone()[0]
+            cursor.execute(f''' UPDATE dbo.RewardsRedemption 
+                                SET status = 1
+                                WHERE reward_id = '{reward_id}' AND student_id = '{redeemer}' ''')
+            cursor.execute(f''' UPDATE dbo.Students
+                                SET student_points = {current_points}
+                                WHERE student_username = '{redeemer}'
+                            ''')
+            conn.commit()
+            
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    'message': 'Redemption request has been approved'
+                }
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    'message': 'Unable to proceed, try again or check your query.',
+                    'error': str(e)
+                }
+            )
+    

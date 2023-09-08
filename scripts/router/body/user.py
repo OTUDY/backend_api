@@ -29,4 +29,10 @@ class AddStudent(BaseModel):
     firstname: str
     surname: str
     class_name: str
+
+class AddStudentByLink(BaseModel):
+    username: str
+    pwd: str
+    firstname: str
+    surname: str
     

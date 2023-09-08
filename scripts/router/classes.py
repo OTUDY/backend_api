@@ -6,6 +6,8 @@ from .body.classes import ClassCreationForm
 import jwt
 import os
 import pyodbc
+from .body.user import AddStudent
+from cryptography.fernet import Fernet
 
 router = APIRouter(prefix='/class')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
@@ -80,12 +82,16 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
 
 @router.put('/update_class_detail', tags=['class'])
 def update_class_detail(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    clv_id = crud.get(f"SELECT clv_id FROM dbo.ClassLevel WHERE '{data.level}'")[0][0]
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    clv_id = cursor.execute(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
     query: str = f'''
                         UPDATE Classes SET clv_id = {clv_id}, class_desc = '{data.class_desc}'
                         WHERE class_id = '{data.class_name}'
                   '''
-    crud.operate(query, 'edit')
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
@@ -96,13 +102,34 @@ def update_class_detail(current_user: any = Depends(get_current_user), data: Cla
 
 @router.put('/assign_mission', tags=['class'])
 def assign_mission(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
-    crud.operate(f'''INSERT INTO ClassMissionRelationship (class_id, mission_name) VALUES ('{_class}', '{mission_name}') ''', 'add')
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cursor.execute(f'''INSERT INTO ClassMissionRelationship (class_id, mission_name) VALUES ('{_class}', '{mission_name}') ''')
+    conn.commit()
+    conn.close()
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             'message': 'successfully assigned.',
             'class': _class,
             'mission': mission_name
+        }
+    )
+@router.delete('/delete_class', tags=['class'])
+async def delete_class(_class: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cursor.execute(f'''DELETE FROM dbo.ClassesActivitiesRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(f'''DELETE FROM dbo.ClassMissionRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(f'''DELETE FROM dbo.TeachersClassesRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(f'''DELETE FROM dbo.Classes WHERE class_id = '{_class}' ''')
+    conn.commit()
+    conn.close()
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={
+            'message': 'successfully deleted',
+            'class': _class,
         }
     )
 
@@ -116,9 +143,10 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                                 dbo.Missions.mission_name,
                                 dbo.Missions.mission_subject,
                                 dbo.Missions.mission_active_status,
-                                dbo.TeachersClassesRelationship.teacher_id
-                        FROM dbo.Students
-                        LEFT JOIN dbo.Classes
+                                dbo.TeachersClassesRelationship.teacher_id,
+                                dbo.ClassesActivitiesRelationship.act_name
+                        FROM dbo.Classes
+                        LEFT JOIN dbo.Students
                         ON dbo.Students.class_id = dbo.Classes.class_id
                         LEFT JOIN dbo.ClassMissionRelationship
                         ON dbo.Classes.class_id = dbo.ClassMissionRelationship.class_id
@@ -128,6 +156,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                         ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
                         LEFT JOIN dbo.TeachersClassesRelationship
                         ON dbo.TeachersClassesRelationship.class_id = dbo.Students.class_id
+                        LEFT JOIN dbo.ClassesActivitiesRelationship
+                        ON dbo.ClassesActivitiesRelationship.class_id = dbo.Classes.class_id
                         WHERE dbo.Classes.class_id = '{_class}' 
                     '''
                     )
@@ -152,7 +182,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         students.append(class_data[0])
         if class_data[-2] not in teachers:
             teachers.append(class_data[-2])
-        missions[class_data[-3]].append(class_data[3])
+        if class_data[3] not in missions[class_data[-4]]:
+            missions[class_data[-4]].append(class_data[3])
         if class_data[-1] not in activities:
             activities.append(class_data[-1])
     class_level = class_data[2]
@@ -170,4 +201,93 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         content=response_data
     )
 
+@router.put('/remove_students', tags=['class', 'student'])
+async def remove_students(students: list[str], current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    for student in students:
+        cursor.execute(f''' UPDATE dbo.Students SET class_id = NULL WHERE student_username = '{student}' ''')
+    conn.commit()
+    conn.close()
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'message': 'successfully removed students.',
+            'removed_students': students
+        }
+    )
+
+@router.get('/get_all_classes', tags=['class', 'student'])
+async def get_all_classes(current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    result = cursor.execute(f'''SELECT class_id, class_name, clv_name, class_desc 
+                                FROM dbo.Classes
+                                INNER JOIN dbo.ClassLevels
+                                ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id 
+                    '''
+    )\
+    .fetchall()
+    if not result:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                'message': 'Class not found.'
+            }
+        )
+    
+    classes = {}
+    for _class in result:
+        classes[_class[0]] = {
+            'class_name': _class[1],
+            'class_level': _class[2],
+            'description': _class[3]
+        }
+    
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=classes
+    )
+
+@router.get('/add_student', tags=['class', 'student'])
+async def add_student(_class: str, student_username: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    try :
+        cursor.execute(f''' UPDATE dbo.Students SET class_id = '{_class}' WHERE student_username = '{student_username}' ''')
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': f'student {student_username} has been added to class {_class}'
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'message': 'Unable to proceed.',
+                'error': str(e)
+            }
+        )
+    
+@router.get('/add_student/join/', tags=['class', 'student'])
+async def add_student_by_link(class_id: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    try: 
+        cursor.execute(f''' UPDATE dbo.Students SET class_id = '{class_id}' WHERE student_username = '{current_user}' ''')
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': f'student {current_user} has been added to class {class_id}'
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'message': 'Unable to proceed.',
+                'error': str(e)
+            }
+        )
     
