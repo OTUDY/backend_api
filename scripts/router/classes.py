@@ -8,6 +8,7 @@ import os
 import pyodbc
 from .body.user import AddStudent
 from cryptography.fernet import Fernet
+from typing import List
 
 router = APIRouter(prefix='/class')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
@@ -202,7 +203,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     )
 
 @router.put('/remove_students', tags=['class', 'student'])
-async def remove_students(students: list[str], current_user: any = Depends(get_current_user)) -> Response:
+async def remove_students(students: List[str], current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     for student in students:
