@@ -11,7 +11,8 @@ import uvicorn
 app = FastAPI(docs_url='/docs')
 
 origins = [
-    "https://otudy.co",  # Replace with your frontend URL,  # Allow localhost with IP
+    "https://otudy.co",
+    "https://app.otudy.co"  # Replace with your frontend URL,  # Allow localhost with IP
 ]
 
 app.add_middleware(
