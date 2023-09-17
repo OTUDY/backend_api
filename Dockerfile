@@ -1,5 +1,5 @@
 
-FROM python:3.8.12-alpine
+FROM python:3.11.4-alpine
 
 RUN apk update
 RUN apk add gcc libc-dev g++ libffi-dev libxml2 unixodbc-dev unixodbc mariadb-dev libstdc++6
