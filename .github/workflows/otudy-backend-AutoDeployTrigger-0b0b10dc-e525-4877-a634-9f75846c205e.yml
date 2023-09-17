@@ -1,0 +1,42 @@
+name: Trigger auto deployment for otudy-backend
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/otudy-backend-AutoDeployTrigger-0b0b10dc-e525-4877-a634-9f75846c205e.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:
+      
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.OTUDYBACKEND_AZURE_CREDENTIALS }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: ca7a387aa9f3acr.azurecr.io
+          registryUsername: ${{ secrets.OTUDYBACKEND_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.OTUDYBACKEND_REGISTRY_PASSWORD }}
+          containerAppName: otudy-backend
+          resourceGroup: otudy
+          imageToBuild: ca7a387aa9f3acr.azurecr.io/otudy-backend:${{ github.sha }}
+          dockerfilePath: Dockerfile
+
+     
+
