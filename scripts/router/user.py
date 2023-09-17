@@ -17,7 +17,7 @@ from .tool import Tool
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET = "CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y="
+SECRET = os.environ.get('key')
 ALGORITHM = 'HS256'
 driver = pyodbc.drivers()
 if driver:

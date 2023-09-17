@@ -11,7 +11,7 @@ import pyodbc
 
 router = APIRouter(prefix='/mission')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET_KEY = 'CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y='
+SECRET_KEY = os.environ.get('key')
 ALGORITHM = 'HS256'
 driver = pyodbc.drivers()
 if driver:
