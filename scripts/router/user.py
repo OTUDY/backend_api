@@ -17,7 +17,7 @@ from .tool import Tool
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET = os.environ.get('key')
+SECRET = "CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y="
 ALGORITHM = 'HS256'
 driver = pyodbc.drivers()
 if driver:
@@ -36,7 +36,6 @@ connection_string = '''Driver={%s};
                          os.environ.get('AZURE_SQL_DATABASE'), 
                          os.environ.get('AZURE_SQL_USER'), 
                          os.environ.get('AZURE_SQL_PASSWORD'))
-cipher = Fernet(SECRET.encode())
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,7 +82,7 @@ def register(data: RegisterForm) -> Response:
     if data.role == 2:
         table = "dbo.Students"
         prefix = 'student'
-    
+    cipher = Fernet(SECRET.encode())
     aff_id = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{data.affiliation}'").fetchone()[0]
     cursor.execute(f'''INSERT INTO 
                     {table}
@@ -131,6 +130,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     elif form_data.client_id == '1':
         print('User is teacher.')
         data = cursor.execute(f'''SELECT teacher_email, teacher_hashed_pwd FROM dbo.Teachers WHERE teacher_email = '{form_data.username}' ''').fetchone()
+    cipher = Fernet(SECRET.encode())
     decoded_pwd: str = cipher.decrypt(data[1].encode()).decode()
     if not data or form_data.password != decoded_pwd:
         return JSONResponse(
@@ -194,6 +194,7 @@ def edit_detail(current_user: any = Depends(get_current_user), edit_form: Regist
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     aff_id = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{edit_form.affiliation}'").fetchone()[0]
+    cipher = Fernet(SECRET.encode())
     query: str = f'''
                         UPDATE dbo.Teachers
                         SET teacher_email = '{edit_form.email}',

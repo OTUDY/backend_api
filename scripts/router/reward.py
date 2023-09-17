@@ -10,7 +10,7 @@ import pyodbc
 
 router = APIRouter(prefix='/reward')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET_KEY = os.environ.get('key')
+SECRET_KEY = 'CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y='
 ALGORITHM = 'HS256'
 driver = pyodbc.drivers()
 if driver:
