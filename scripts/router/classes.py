@@ -202,7 +202,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         students.append({
             'studentId': class_data[0],
             'firstName': cipher.decrypt(class_data[8].encode()).decode(),
-            'surName': cipher.decrypt(class_data[9].encode())
+            'surName': cipher.decrypt(class_data[9].encode()).decode()
         })
         if class_data[6] not in teachers:
             teachers.append(class_data[6])
