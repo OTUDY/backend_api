@@ -152,7 +152,7 @@ async def delete_class(_class: str, current_user: any = Depends(get_current_user
 def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(f''' SELECT  dbo.Students.student_username, 
+    cursor.execute(f''' SELECT  dbo.StudentsClassesRelationship.student_id, 
                                 dbo.Classes.class_id, 
                                 dbo.ClassLevels.clv_name, 
                                 dbo.Missions.mission_name,
@@ -163,8 +163,10 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                                 dbo.Students.student_fname,
                                 dbo.Students.student_surname
                         FROM dbo.Classes
+                        LEFT JOIN dbo.StudentsClassesRelationship
+                        ON dbo.StudentsClassesRelationship.class_id = dbo.Classes.class_id
                         LEFT JOIN dbo.Students
-                        ON dbo.Students.class_id = dbo.Classes.class_id
+                        ON dbo.Students.student_username = dbo.StudentsClassesRelationship.student_id
                         LEFT JOIN dbo.ClassMissionRelationship
                         ON dbo.Classes.class_id = dbo.ClassMissionRelationship.class_id
                         LEFT JOIN dbo.Missions
@@ -172,7 +174,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                         LEFT JOIN dbo.ClassLevels
                         ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
                         LEFT JOIN dbo.TeachersClassesRelationship
-                        ON dbo.TeachersClassesRelationship.class_id = dbo.Students.class_id
+                        ON dbo.TeachersClassesRelationship.class_id = dbo.StudentsClassesRelationship.class_id
                         LEFT JOIN dbo.ClassesActivitiesRelationship
                         ON dbo.ClassesActivitiesRelationship.class_id = dbo.Classes.class_id
                         WHERE dbo.Classes.class_id = '{_class}' 
@@ -200,7 +202,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         students.append({
             'studentId': class_data[0],
             'firstName': cipher.decrypt(class_data[8].encode()).decode(),
-            'surName': cipher.decrypt(class_data[9].encode()).decode()
+            'surName': cipher.decrypt(class_data[9].encode())
         })
         if class_data[6] not in teachers:
             teachers.append(class_data[6])
@@ -225,12 +227,12 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
 
 
 @router.put('/remove_students', tags=['class', 'student'])
-async def remove_students(students: List[str], current_user: any = Depends(get_current_user)) -> Response:
+async def remove_students(students: List[str], _class: str ,current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     for student in students:
         cursor.execute(
-            f''' UPDATE dbo.Students SET class_id = NULL WHERE student_username = '{student}' ''')
+            f''' DELETE FROM dbo.StudentsClassesRelationship WHERE student_id = '{student}' AND class_id = '{_class}' ''')
     conn.commit()
     conn.close()
     return JSONResponse(
@@ -281,7 +283,7 @@ async def add_student(_class: str, student_username: str, current_user: any = De
     cursor = conn.cursor()
     try:
         cursor.execute(
-            f''' UPDATE dbo.Students SET class_id = '{_class}' WHERE student_username = '{student_username}' ''')
+            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{student_username}', '{_class}') ''')
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
