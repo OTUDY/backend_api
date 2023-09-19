@@ -83,12 +83,14 @@ def register(data: RegisterForm) -> Response:
         table = "dbo.Students"
         prefix = 'student'
     cipher = Fernet(SECRET.encode())
-    aff_id = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{data.affiliation}'").fetchone()[0]
-    if aff_id is None:
+    aff_id_ = cursor.execute(f"SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{data.affiliation}'").fetchone()
+    if aff_id_ is None:
         cursor.execute(f'''INSERT INTO dbo.Affiliations (aff_name) VALUES ('{data.affiliation}')''')
         conn.commit()
 
         aff_id = cursor.execute(f''' SELECT aff_id FROM dbo.Affiliations WHERE aff_name = '{data.affiliation}' ''').fetchone()[0]
+    else :
+        aff_id = aff_id_[0]
     cursor.execute(f'''INSERT INTO 
                     {table}
                     (
