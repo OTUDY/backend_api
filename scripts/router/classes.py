@@ -25,12 +25,13 @@ connection_string = '''Driver={%s};
                        Pwd=%s;
                        Encrypt=yes;
                        TrustServerCertificate=no;Connection Timeout=300;
-                    '''%(driver,
-                         os.environ.get('AZURE_SQL_SERVER'),
-                         int(os.environ.get('AZURE_SQL_PORT')), 
-                         os.environ.get('AZURE_SQL_DATABASE'), 
-                         os.environ.get('AZURE_SQL_USER'), 
-                         os.environ.get('AZURE_SQL_PASSWORD'))
+                    ''' % (driver,
+                           os.environ.get('AZURE_SQL_SERVER'),
+                           int(os.environ.get('AZURE_SQL_PORT')),
+                           os.environ.get('AZURE_SQL_DATABASE'),
+                           os.environ.get('AZURE_SQL_USER'),
+                           os.environ.get('AZURE_SQL_PASSWORD'))
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -47,6 +48,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except jwt.PyJWTError:
         raise credentials_exception
 
+
 @router.get('/')
 def class_root() -> Response:
     return JSONResponse(
@@ -56,11 +58,13 @@ def class_root() -> Response:
         }
     )
 
+
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    clv_id = cursor.execute(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
+    clv_id = cursor.execute(
+        f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
     query: str = f'''
                         INSERT INTO dbo.Classes (class_id, class_name, clv_id, class_desc) 
                         VALUES ('{data.class_name}', '{data.class_name}', {clv_id}, '{data.class_desc}')
@@ -81,11 +85,13 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
         }
     )
 
+
 @router.put('/update_class_detail', tags=['class'])
 def update_class_detail(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    clv_id = cursor.execute(f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
+    clv_id = cursor.execute(
+        f"SELECT clv_id FROM dbo.ClassLevels WHERE clv_name = '{data.level}'").fetchone()[0]
     query: str = f'''
                         UPDATE Classes SET clv_id = {clv_id}, class_desc = '{data.class_desc}'
                         WHERE class_id = '{data.class_name}'
@@ -101,11 +107,13 @@ def update_class_detail(current_user: any = Depends(get_current_user), data: Cla
         }
     )
 
+
 @router.put('/assign_mission', tags=['class'])
 def assign_mission(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(f'''INSERT INTO ClassMissionRelationship (class_id, mission_name) VALUES ('{_class}', '{mission_name}') ''')
+    cursor.execute(
+        f'''INSERT INTO ClassMissionRelationship (class_id, mission_name) VALUES ('{_class}', '{mission_name}') ''')
     conn.commit()
     conn.close()
     return JSONResponse(
@@ -116,13 +124,18 @@ def assign_mission(_class: str, mission_name: str, current_user: any = Depends(g
             'mission': mission_name
         }
     )
+
+
 @router.delete('/delete_class', tags=['class'])
 async def delete_class(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(f'''DELETE FROM dbo.ClassesActivitiesRelationship WHERE class_id = '{_class}' ''')
-    cursor.execute(f'''DELETE FROM dbo.ClassMissionRelationship WHERE class_id = '{_class}' ''')
-    cursor.execute(f'''DELETE FROM dbo.TeachersClassesRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(
+        f'''DELETE FROM dbo.ClassesActivitiesRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(
+        f'''DELETE FROM dbo.ClassMissionRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(
+        f'''DELETE FROM dbo.TeachersClassesRelationship WHERE class_id = '{_class}' ''')
     cursor.execute(f'''DELETE FROM dbo.Classes WHERE class_id = '{_class}' ''')
     conn.commit()
     conn.close()
@@ -133,6 +146,7 @@ async def delete_class(_class: str, current_user: any = Depends(get_current_user
             'class': _class,
         }
     )
+
 
 @router.get('/get_class_meta_data', tags=['class'])
 def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) -> Response:
@@ -145,7 +159,9 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                                 dbo.Missions.mission_subject,
                                 dbo.Missions.mission_active_status,
                                 dbo.TeachersClassesRelationship.teacher_id,
-                                dbo.ClassesActivitiesRelationship.act_name
+                                dbo.ClassesActivitiesRelationship.act_name,
+                                dbo.Students.student_fname,
+                                dbo.Students.student_surname
                         FROM dbo.Classes
                         LEFT JOIN dbo.Students
                         ON dbo.Students.class_id = dbo.Classes.class_id
@@ -161,7 +177,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                         ON dbo.ClassesActivitiesRelationship.class_id = dbo.Classes.class_id
                         WHERE dbo.Classes.class_id = '{_class}' 
                     '''
-                    )
+                   )
     result = cursor.fetchall()
     if not result:
         return JSONResponse(
@@ -180,13 +196,17 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     }
     activities = []
     for class_data in result:
-        students.append(class_data[0])
-        if class_data[-2] not in teachers:
-            teachers.append(class_data[-2])
-        if class_data[3] not in missions[class_data[-4]]:
+        students.append({
+            'studentId': class_data[0],
+            'firstName': class_data[-2],
+            'surName': class_data[-1]
+        })
+        if class_data[-4] not in teachers:
+            teachers.append(class_data[-4])
+        if class_data[3] not in missions[class_data[-6]]:
             missions[class_data[-4]].append(class_data[3])
-        if class_data[-1] not in activities:
-            activities.append(class_data[-1])
+        if class_data[-3] not in activities:
+            activities.append(class_data[-3])
     class_level = class_data[2]
     response_data = {
         'className': _class,
@@ -202,12 +222,14 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         content=response_data
     )
 
+
 @router.put('/remove_students', tags=['class', 'student'])
 async def remove_students(students: List[str], current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     for student in students:
-        cursor.execute(f''' UPDATE dbo.Students SET class_id = NULL WHERE student_username = '{student}' ''')
+        cursor.execute(
+            f''' UPDATE dbo.Students SET class_id = NULL WHERE student_username = '{student}' ''')
     conn.commit()
     conn.close()
     return JSONResponse(
@@ -218,6 +240,7 @@ async def remove_students(students: List[str], current_user: any = Depends(get_c
         }
     )
 
+
 @router.get('/get_all_classes', tags=['class', 'student'])
 async def get_all_classes(current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
@@ -227,8 +250,8 @@ async def get_all_classes(current_user: any = Depends(get_current_user)) -> Resp
                                 INNER JOIN dbo.ClassLevels
                                 ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id 
                     '''
-    )\
-    .fetchall()
+                            )\
+        .fetchall()
     if not result:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -236,7 +259,7 @@ async def get_all_classes(current_user: any = Depends(get_current_user)) -> Resp
                 'message': 'Class not found.'
             }
         )
-    
+
     classes = {}
     for _class in result:
         classes[_class[0]] = {
@@ -244,18 +267,20 @@ async def get_all_classes(current_user: any = Depends(get_current_user)) -> Resp
             'class_level': _class[2],
             'description': _class[3]
         }
-    
+
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=classes
     )
 
+
 @router.get('/add_student', tags=['class', 'student'])
 async def add_student(_class: str, student_username: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    try :
-        cursor.execute(f''' UPDATE dbo.Students SET class_id = '{_class}' WHERE student_username = '{student_username}' ''')
+    try:
+        cursor.execute(
+            f''' UPDATE dbo.Students SET class_id = '{_class}' WHERE student_username = '{student_username}' ''')
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
@@ -270,13 +295,15 @@ async def add_student(_class: str, student_username: str, current_user: any = De
                 'error': str(e)
             }
         )
-    
+
+
 @router.get('/add_student/join/', tags=['class', 'student'])
 async def add_student_by_link(class_id: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    try: 
-        cursor.execute(f''' UPDATE dbo.Students SET class_id = '{class_id}' WHERE student_username = '{current_user}' ''')
+    try:
+        cursor.execute(
+            f''' UPDATE dbo.Students SET class_id = '{class_id}' WHERE student_username = '{current_user}' ''')
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
@@ -291,4 +318,3 @@ async def add_student_by_link(class_id: str, current_user: any = Depends(get_cur
                 'error': str(e)
             }
         )
-    
