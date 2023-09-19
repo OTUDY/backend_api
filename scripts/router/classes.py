@@ -198,15 +198,15 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     for class_data in result:
         students.append({
             'studentId': class_data[0],
-            'firstName': class_data[-2],
-            'surName': class_data[-1]
+            'firstName': class_data[8],
+            'surName': class_data[9]
         })
-        if class_data[-4] not in teachers:
-            teachers.append(class_data[-4])
-        if class_data[3] not in missions[class_data[-6]]:
-            missions[class_data[-4]].append(class_data[3])
-        if class_data[-3] not in activities:
-            activities.append(class_data[-3])
+        if class_data[6] not in teachers:
+            teachers.append(class_data[6])
+        if class_data[3] not in missions[class_data[4]]:
+            missions[class_data[4]].append(class_data[3])
+        if class_data[7] not in activities:
+            activities.append(class_data[7])
     class_level = class_data[2]
     response_data = {
         'className': _class,
