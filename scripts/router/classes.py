@@ -284,6 +284,8 @@ async def add_student(_class: str, student_username: str, current_user: any = De
     try:
         cursor.execute(
             f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{student_username}', '{_class}') ''')
+        conn.commit()
+        conn.close()
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
