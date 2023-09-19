@@ -179,6 +179,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                     '''
                    )
     result = cursor.fetchall()
+    cipher = Fernet(SECRET_KEY.encode())
     if not result:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -198,8 +199,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     for class_data in result:
         students.append({
             'studentId': class_data[0],
-            'firstName': class_data[8],
-            'surName': class_data[9]
+            'firstName': cipher.decrypt(class_data[8].encode()),
+            'surName': cipher.decrypt(class_data[9].encode())
         })
         if class_data[6] not in teachers:
             teachers.append(class_data[6])
