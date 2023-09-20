@@ -58,8 +58,8 @@ def reward_root() -> Response:
 
 @router.post('/create_reward', tags=['rewards'])
 def create_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
-    query: str = f''' INSERT INTO dbo.Rewards (reward_name, reward_desc, reward_spent_points, reward_active_status)
-                      VALUES ('{data.reward_name}', '{data.reward_desc}', {data.reward_spent_points}, {int(data.reward_active_status)})'''
+    query: str = f''' INSERT INTO dbo.Rewards (reward_name, reward_desc, reward_spent_points, reward_active_status, class_id)
+                      VALUES ('{data.reward_name}', '{data.reward_desc}', {data.reward_spent_points}, {int(data.reward_active_status)}, '{data.class_id}') '''
     cursor.execute(query)
     conn.commit()
     return JSONResponse(
@@ -71,8 +71,8 @@ def create_reward(current_user: any = Depends(get_current_user), data: CreateRew
     )
 
 @router.get('/get_reward_detail/', tags=['rewards'])
-def get_reward_detail(reward_name: str, current_user: any = Depends(get_current_user)) -> Response:
-    result = cursor.execute(f"SELECT * FROM dbo.Rewards WHERE reward_name = '{reward_name}'").fetchone()
+def get_reward_detail(reward_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
+    result = cursor.execute(f"SELECT * FROM dbo.Rewards WHERE reward_name = '{reward_name}' AND class_id = '{_class}'").fetchone()
     if not result:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -85,7 +85,8 @@ def get_reward_detail(reward_name: str, current_user: any = Depends(get_current_
         'reward_desc': result[1],
         'reward_pic': result[2],
         'reward_spent_points': result[3],
-        'reward_active_status': result[4]
+        'reward_active_status': result[4],
+        'class_id': result[5]
     }
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -100,8 +101,9 @@ def update_reward(current_user: any = Depends(get_current_user), data: CreateRew
                                    reward_desc = '{data.reward_desc}', 
                                    reward_pic = '{data.reward_pic}', 
                                    reward_spent_points = {data.reward_spent_points}, 
-                                   reward_active_status = {int(data.reward_active_status)}
-                  WHERE reward_name = '{data.reward_name}' '''
+                                   reward_active_status = {int(data.reward_active_status)},
+                                   class_id = '{data.class_id}'
+                  WHERE reward_name = '{data.reward_name}' AND class_id = '{data.class_id}' '''
     )
     conn.commit()
     return JSONResponse(
@@ -113,9 +115,9 @@ def update_reward(current_user: any = Depends(get_current_user), data: CreateRew
     )
 
 @router.delete('/reward_name', tags=['rewards'])
-async def delete_reward(reward_name: str, current_user: any = Depends(get_current_user)) -> Response:
+async def delete_reward(reward_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
     try: 
-        cursor.execute(f"DELETE FROM dbo.Rewards WHERE reward_name = '{reward_name}' ")
+        cursor.execute(f"DELETE FROM dbo.Rewards WHERE reward_name = '{reward_name}' AND class_id = '{_class}'")
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
@@ -172,8 +174,8 @@ def redeem(user_email: str, reward_name: str, current_user: any = Depends(get_cu
         )
 
 @router.get('/get_all_rewards', tags=['rewards'])
-def get_all_reward(current_user: any = Depends(get_current_user)) -> Response:
-    _result = cursor.execute('SELECT * FROM dbo.Rewards').fetchall()
+def get_all_reward(_class: str, current_user: any = Depends(get_current_user)) -> Response:
+    _result = cursor.execute(f'''SELECT * FROM dbo.Rewards WHERE class_id = '{_class}' ''').fetchall()
     rewards = []
     for result in _result:
         rewards.append({
@@ -189,12 +191,12 @@ def get_all_reward(current_user: any = Depends(get_current_user)) -> Response:
         )
 
 @router.get('/get_all_pending_approval_redemptions', tags=['rewards', 'redemption'])
-async def get_all_pending_approval_redemptions(current_user: any = Depends(get_current_user)) -> Response:
-    _result = cursor.execute('''SELECT student_id, reward_id, status, timestamp, reward_desc, reward_spent_points
+async def get_all_pending_approval_redemptions(_class: str, current_user: any = Depends(get_current_user)) -> Response:
+    _result = cursor.execute(f'''SELECT student_id, reward_id, status, timestamp, reward_desc, reward_spent_points
                                 FROM dbo.RewardsRedemption
                                 INNER JOIN dbo.Rewards
                                 ON dbo.Rewards.reward_name = dbo.RewardsRedemption.reward_id
-                                WHERE dbo.RewardsRedemption.status = 2''').fetchall()
+                                WHERE dbo.RewardsRedemption.status = 2 AND class_id = '{_class}' ''').fetchall()
     redeems = {}
     for index, redempt in enumerate(_result):
         key = f'reward_{index}'
@@ -213,12 +215,12 @@ async def get_all_pending_approval_redemptions(current_user: any = Depends(get_c
     )
     
 @router.get('/update_redemption_status', tags=['rewards', 'redemption'])
-async def update_status(redeemer: str, reward_id: str, status_: str, current_user: any = Depends(get_current_user)) -> Response:
+async def update_status(redeemer: str, reward_id: str, status_: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
     if status_ == 'deny': 
         try :
             cursor.execute(f''' UPDATE dbo.RewardsRedemption 
                                 SET status = 0
-                                WHERE reward_id = '{reward_id}' AND student_id = '{redeemer}' ''')
+                                WHERE reward_id = '{reward_id}' AND student_id = '{redeemer}' AND class_id = '{_class}' ''')
             conn.commit()
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
@@ -242,12 +244,12 @@ async def update_status(redeemer: str, reward_id: str, status_: str, current_use
                                                 ON dbo.RewardsRedemption.student_id = dbo.Students.student_username
                                                 INNER JOIN dbo.Rewards
                                                 ON dbo.RewardsRedemption.reward_id = dbo.Rewards.reward_name
-                                                WHERE dbo.RewardsRedemption.student_id = '{redeemer}' AND dbo.RewardsRedemption.reward_id = '{reward_id}'
+                                                WHERE dbo.RewardsRedemption.student_id = '{redeemer}' AND dbo.RewardsRedemption.reward_id = '{reward_id}' AND dbo.RewardsRedemption.class_id = '{_class}'
                                             ''')\
                                             .fetchone()[0]
             cursor.execute(f''' UPDATE dbo.RewardsRedemption 
                                 SET status = 1
-                                WHERE reward_id = '{reward_id}' AND student_id = '{redeemer}' ''')
+                                WHERE reward_id = '{reward_id}' AND student_id = '{redeemer}' AND class_id = '{_class}' ''')
             cursor.execute(f''' UPDATE dbo.Students
                                 SET student_points = {current_points}
                                 WHERE student_username = '{redeemer}'
