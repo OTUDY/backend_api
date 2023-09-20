@@ -276,16 +276,20 @@ async def update_mission_status(student_id: str, mission_name: str, status_: str
 async def get_all_pending_approval_redemptions(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    _result = cursor.execute(f'''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points
+    _result = cursor.execute(f'''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points, dbo.Students.student_fname, dbo.Students.student_surname
                                 FROM dbo.StudentsMissionsRelationship
                                 INNER JOIN dbo.Missions
                                 ON dbo.Missions.mission_name = dbo.StudentsMissionsRelationship.mission_name
-                                WHERE dbo.StudentsMissionsRelationship.status = 2 AND dbo.Missions.mission_created_in_class = '{_class}' ''').fetchall()
+                                INNER JOIN dbo.Students
+                                ON dbo.Students.student_username = dbo.StudentsMissionsRelationship.student_id
+                                WHERE dbo.Missions.mission_created_in_class = '{_class}' ''').fetchall()
     redeems = []
     for index, redempt in enumerate(_result):
         key = f'missioner_{index}'
         redeems.append({
             'student': redempt[0],
+            'firstname': redempt[6],
+            'surname': redempt[7],
             'mission_name': redempt[1],
             'status': redempt[2],
             'started_date': redempt[3],
@@ -303,10 +307,13 @@ async def get_all_pending_approval_redemptions(_class: str, current_user: any = 
 async def get_all_pending_approval_redemptions(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    _result = cursor.execute(f'''SELECT student_id, mission_name, status, start_date, mission_points
+    _result = cursor.execute(f'''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points, dbo.Students.student_fname, dbo.Students.student_surname
                                 FROM dbo.StudentsMissionsRelationship
-                                WHERE dbo.StudentsMissionsRelationship.status = 2 
-                                AND dbo.StudentsMissionsRelationship.class_id = '{_class}' 
+                                INNER JOIN dbo.Missions
+                                ON dbo.Missions.mission_name = dbo.StudentsMissionsRelationship.mission_name
+                                INNER JOIN dbo.Students
+                                ON dbo.Students.student_username = dbo.StudentsMissionsRelationship.student_id
+                                WHERE dbo.StudentsMissionsRelationship.class_id = '{_class}' 
                                 AND dbo.StudentsMissionsRelationship.mission_name = '{mission_name}' ''').fetchall()
     redeems = []
     for index, redempt in enumerate(_result):
