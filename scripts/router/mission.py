@@ -8,6 +8,7 @@ from .crud import SQLiteManager, SQLManager
 import jwt
 import os
 import pyodbc
+from cryptography.fernet import Fernet
 
 router = APIRouter(prefix='/mission')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
@@ -274,6 +275,7 @@ async def update_mission_status(student_id: str, mission_name: str, status_: str
         
 @router.get('/get_all_on_going_missions', tags=['missions', 'student'])
 async def get_all_pending_approval_redemptions(_class: str, current_user: any = Depends(get_current_user)) -> Response:
+    cipher = Fernet(SECRET_KEY.encode())
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     _result = cursor.execute(f'''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points, dbo.Students.student_fname, dbo.Students.student_surname
@@ -288,8 +290,8 @@ async def get_all_pending_approval_redemptions(_class: str, current_user: any = 
         key = f'missioner_{index}'
         redeems.append({
             'student': redempt[0],
-            'firstname': redempt[6],
-            'surname': redempt[7],
+            'firstname': cipher.decrypt(redempt[6].encode()).decode(),
+            'surname': cipher.decrypt(redempt[7].encode()).decode(),
             'mission_name': redempt[1],
             'status': redempt[2],
             'started_date': redempt[3],
@@ -306,6 +308,7 @@ async def get_all_pending_approval_redemptions(_class: str, current_user: any = 
 @router.get('/get_on_going_missions_by_mission', tags=['missions', 'student'])
 async def get_all_pending_approval_redemptions(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
+    cipher = Fernet(SECRET_KEY.encode())
     cursor = conn.cursor()
     _result = cursor.execute(f'''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points, dbo.Students.student_fname, dbo.Students.student_surname
                                 FROM dbo.StudentsMissionsRelationship
@@ -319,9 +322,12 @@ async def get_all_pending_approval_redemptions(_class: str, mission_name: str, c
     for index, redempt in enumerate(_result):
         redeems.append({
             'student': redempt[0],
+            'firstname': cipher.decrypt(redempt[6].encode()).decode(),
+            'surname': cipher.decrypt(redempt[7].encode()).decode(),
             'mission_name': redempt[1],
             'status': redempt[2],
             'started_date': redempt[3],
+            'description': redempt[5],
             'points': redempt[4]
         })
     return JSONResponse(
