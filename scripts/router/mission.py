@@ -61,9 +61,9 @@ async def create_mission(current_user: UserKey = Depends(get_current_user), data
     cursor = conn.cursor()
     query: str = f'''
         INSERT INTO Missions
-        (mission_name, mission_desc, mission_points, mission_active_status, mission_expired_date, mission_created_in_class)
+        (mission_name, mission_desc, mission_points, mission_active_status, mission_expired_date, mission_created_in_class, mission_subject)
         VALUES
-        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)}, '{data.mission_expired_date}', '{data.mission_class_id}')
+        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)}, '{data.mission_expired_date}', '{data.mission_class_id}', '{str(data.tags)}')
     '''
     cursor.execute(query)
     conn.commit()

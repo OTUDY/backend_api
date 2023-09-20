@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel
 
 class CreateMission(BaseModel):
@@ -7,3 +8,4 @@ class CreateMission(BaseModel):
     mission_active_status: bool = True | False
     mission_class_id: str
     mission_expired_date: str
+    tags: List[str] = ['', '']
