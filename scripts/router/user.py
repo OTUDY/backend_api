@@ -146,7 +146,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
                 'message': 'User has not registered.'
             }
         )
-    access_token_expires = datetime.utcnow() + timedelta(minutes=15)
+    access_token_expires = datetime.utcnow() + timedelta(minutes=43200)
     access_token = Tool.create_token(
         data={"sub": form_data.username}, expires_delta=access_token_expires, secret=SECRET, algorithm='HS256'
     )
