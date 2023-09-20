@@ -116,10 +116,10 @@ def get_mission_detail(mission_name: str, _class: str, current_user: UserKey = D
         )
 
 @router.delete('/delete_mission', tags=['missions'])
-async def delete_mission(mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
+async def delete_mission(mission_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(f''' DELETE FROM dbo.Missions WHERE mission_name = '{mission_name}' ''')
+    cursor.execute(f''' DELETE FROM dbo.Missions WHERE mission_name = '{mission_name}' AND dbo.Missions.mission_created_in_class = '{_class}' ''')
     conn.commit()
     conn.close()
     return JSONResponse(
@@ -156,10 +156,12 @@ def get_all_mission(_class: str, current_user: any = Depends(get_current_user)) 
 async def update_mission(current_user: any = Depends(get_current_user), data: CreateMission = None) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    query: str = f'''UPDATE Missions SET mission_desc = '{data.mission_desc}', 
+    query: str = f'''UPDATE dbo.Missions SET mission_desc = '{data.mission_desc}', 
                                          mission_points = {data.mission_points},  
-                                         mission_active_status = {int(data.mission_active_status)}
-                     WHERE mission_name = '{data.mission_name}' '''
+                                         mission_active_status = {int(data.mission_active_status)},
+                                         mission_expired_date = '{data.mission_expired_date}',
+                                         mission_subject = '{'[' + ', '.join(data.tags) + ']'}'
+                     WHERE dbo.mission_name = '{data.mission_name}' AND dbo.mission_created_in_class = '{data.mission_class_id}' '''
     cursor.execute(query)
     conn.commit()
     conn.close()
