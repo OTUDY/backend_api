@@ -61,9 +61,9 @@ async def create_mission(current_user: UserKey = Depends(get_current_user), data
     cursor = conn.cursor()
     query: str = f'''
         INSERT INTO Missions
-        (mission_name, mission_desc, mission_points, mission_active_status)
+        (mission_name, mission_desc, mission_points, mission_active_status, mission_expired_date, mission_created_in_class)
         VALUES
-        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)})
+        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)}, '{data.mission_class_id}')
     '''
     cursor.execute(query)
     conn.commit()
@@ -72,7 +72,13 @@ async def create_mission(current_user: UserKey = Depends(get_current_user), data
             status_code=status.HTTP_201_CREATED,
             content={
                 'message': 'Successfully created the mission.',
-                'mission_name': data.mission_name
+                'created_mission': {
+                    'name': data.mission_name,
+                    'description': data.mission_desc,
+                    'points': data.mission_points,
+                    'active_status': data.mission_active_status,
+                    'created_within_class': data.mission_class_id
+                }
             }
         )
     
@@ -109,7 +115,6 @@ def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_cu
 async def delete_mission(mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    cursor.execute(f''' DELETE FROM dbo.ClassMissionRelationship WHERE mission_name = '{mission_name}' ''')
     cursor.execute(f''' DELETE FROM dbo.Missions WHERE mission_name = '{mission_name}' ''')
     conn.commit()
     conn.close()
@@ -121,18 +126,21 @@ async def delete_mission(mission_name: str, current_user: any = Depends(get_curr
     )
 
 @router.get('/get_all_missions', tags=['missions'])
-def get_all_mission(current_user: any = Depends(get_current_user)) -> Response:
+def get_all_mission(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    _result = cursor.execute('SELECT * FROM dbo.Missions').fetchall()
+    _result = cursor.execute(f'''SELECT * FROM dbo.Missions WHERE mission_created_in_class = '{_class}' ''').fetchall()
     missions = []
     for result in _result:
         missions.append({
-                'mission_name': result[0],
-                'mission_desc': result[1],
-                'mission_redeem_points': result[2],
-                'mission_pic': result[3],
-                'mission_active_status': result[4]
+                'name': result[0],
+                'description': result[1],
+                'redeem_points': result[2],
+                'pic': result[3],
+                'active_status': bool(result[4]),
+                'expired_date': result[5],
+                'created_in_class': result[6],
+                'tags': result[7]
             })
     conn.close()
     return JSONResponse(

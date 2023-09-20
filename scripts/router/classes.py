@@ -167,10 +167,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                         ON dbo.StudentsClassesRelationship.class_id = dbo.Classes.class_id
                         LEFT JOIN dbo.Students
                         ON dbo.Students.student_username = dbo.StudentsClassesRelationship.student_id
-                        LEFT JOIN dbo.ClassMissionRelationship
-                        ON dbo.Classes.class_id = dbo.ClassMissionRelationship.class_id
                         LEFT JOIN dbo.Missions
-                        ON dbo.Missions.mission_name = dbo.ClassMissionRelationship.mission_name
+                        ON dbo.Classes.class_id = dbo.Missions.mission_created_in_class
                         LEFT JOIN dbo.ClassLevels
                         ON dbo.Classes.clv_id = dbo.ClassLevels.clv_id
                         LEFT JOIN dbo.TeachersClassesRelationship
@@ -209,8 +207,11 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
             if class_data[6] not in teachers:
                 teachers.append(class_data[6])
         if class_data[3] != None:
-            if class_data[3] not in missions[class_data[4]]:
-                missions[class_data[4]].append(class_data[3])
+            for subject in class_data[4]:
+                if class_data[3] not in missions[subject]:
+                    if missions[subject] not in list(missions.keys()):
+                        missions[subject] = []
+                    missions[subject].append(class_data[3])
         if class_data[7] != None:
             if class_data[7] not in activities:
                 activities.append(class_data[7])
