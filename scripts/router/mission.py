@@ -303,9 +303,11 @@ async def get_all_pending_approval_redemptions(_class: str, current_user: any = 
 async def get_all_pending_approval_redemptions(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    _result = cursor.execute(f'''SELECT student_id, mission_name, status, start_date, mission_desc, mission_points
+    _result = cursor.execute(f'''SELECT student_id, mission_name, status, start_date, mission_points
                                 FROM dbo.StudentsMissionsRelationship
-                                WHERE dbo.StudentsMissionsRelationship.status = 2 AND dbo.StudentsMissionsRelationship.class_id = '{_class}' ''').fetchall()
+                                WHERE dbo.StudentsMissionsRelationship.status = 2 
+                                AND dbo.StudentsMissionsRelationship.class_id = '{_class}' 
+                                AND dbo.StudentsMissionsRelationship.mission_name = '{mission_name}' ''').fetchall()
     redeems = []
     for index, redempt in enumerate(_result):
         redeems.append({
@@ -313,8 +315,7 @@ async def get_all_pending_approval_redemptions(_class: str, mission_name: str, c
             'mission_name': redempt[1],
             'status': redempt[2],
             'started_date': redempt[3],
-            'description': redempt[4],
-            'points': redempt[5]
+            'points': redempt[4]
         })
     return JSONResponse(
         status_code=status.HTTP_200_OK,
