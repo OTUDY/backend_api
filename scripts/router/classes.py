@@ -162,7 +162,9 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                                 dbo.TeachersClassesRelationship.teacher_id,
                                 dbo.ClassesActivitiesRelationship.act_name,
                                 dbo.Students.student_fname,
-                                dbo.Students.student_surname
+                                dbo.Students.student_surname,
+                                dbo.Missions.mission_points,
+                                dbo.Missions.mission_desc
                         FROM dbo.Classes
                         LEFT JOIN dbo.StudentsClassesRelationship
                         ON dbo.StudentsClassesRelationship.class_id = dbo.Classes.class_id
@@ -190,12 +192,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         )
     students = []
     teachers = []
-    missions = {
-        'mathematic': [],
-        'chemistry': [],
-        'thai': [],
-        'english': []
-    }
+    missions = []
     activities = []
     for class_data in result:
         if class_data[0] != None:
@@ -204,16 +201,17 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
             'firstName': cipher.decrypt(class_data[8].encode()).decode(),
             'surName': cipher.decrypt(class_data[9].encode()).decode()
         })
+        missions.append(
+            {
+                'name': class_data[3],
+                'tags': class_data[4],
+                'reward_points': class_data[10],
+                'description': class_data[11]
+            }
+        )
         if class_data[6] != None:
             if class_data[6] not in teachers:
                 teachers.append(class_data[6])
-        if class_data[3] != None:
-            for subject in class_data[4]:
-                if subject not in list(missions.keys()):
-                    missions[subject] = []
-                else:
-                    if class_data[3] not in missions[subject]:
-                        missions[subject].append(class_data[3])
         if class_data[7] != None:
             if class_data[7] not in activities:
                 activities.append(class_data[7])
