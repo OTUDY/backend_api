@@ -118,6 +118,7 @@ def update_reward(current_user: any = Depends(get_current_user), data: CreateRew
 async def delete_reward(reward_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
     try: 
         cursor.execute(f"DELETE FROM dbo.Rewards WHERE reward_name = '{reward_name}' AND class_id = '{_class}'")
+        conn.commit()
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
