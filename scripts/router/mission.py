@@ -188,12 +188,12 @@ def upload_image(current_user: any = Depends(get_current_user), image: UploadFil
     )
 
 @router.get('/assign_mission_to_student', tags=['missions', 'student'])
-async def assign_mission_to_student(mission_name: str, student_id: str, current_user: any = Depends(get_current_user)) -> Response:
+async def assign_mission_to_student(mission_name: str, student_id: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     try: 
         cursor.execute(f''' INSERT INTO dbo.StudentsMissionsRelationship
-                            VALUES ('{student_id}', '{mission_name}', '{str(datetime.utcnow())}', 2)
+                            VALUES ('{student_id}', '{mission_name}', '{str(datetime.utcnow())}', 2, '{_class}')
                         ''')
         conn.commit()
         return JSONResponse(
@@ -211,14 +211,14 @@ async def assign_mission_to_student(mission_name: str, student_id: str, current_
         )
     
 @router.get('/update_mission_student_status', tags=['missions', 'student'])
-async def update_mission_status(student_id: str, mission_name: str, status_: str, current_user: any = Depends(get_current_user)) -> Response:
+async def update_mission_status(student_id: str, mission_name: str, status_: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
     if status_ == 'deny': 
         try :
             cursor.execute(f''' UPDATE dbo.StudentsMissionsRelationship 
                                 SET status = 0
-                                WHERE mission_name = '{mission_name}' AND student_id = '{student_id}' ''')
+                                WHERE mission_name = '{mission_name}' AND student_id = '{student_id}' AND class_id = '{_class}' ''')
             conn.commit()
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
@@ -242,14 +242,17 @@ async def update_mission_status(student_id: str, mission_name: str, status_: str
                                                 ON dbo.StudentsMissionsRelationship.student_id = dbo.Students.student_username
                                                 INNER JOIN dbo.Missions
                                                 ON dbo.StudentsMissionsRelationship.mission_name = dbo.Missions.mission_name
-                                                WHERE dbo.StudentsMissionsRelationship.student_id = '{student_id}' AND dbo.StudentsMissionsRelationship.mission_name = '{mission_name}'
+                                                WHERE dbo.StudentsMissionsRelationship.student_id = '{student_id}' 
+                                                AND dbo.StudentsMissionsRelationship.mission_name = '{mission_name}'
+                                                AND dbo.StudentsMissionsRelationship.class_id = '{_class}'
                                             ''')\
                                             .fetchone()[0]
             cursor.execute(f''' UPDATE dbo.StudentsMissionsRelationship 
                                 SET status = 1
                                 WHERE mission_name = '{mission_name}' AND student_id = '{student_id}' ''')
             cursor.execute(f''' UPDATE dbo.Students
-                                SET student_points = {current_points}
+                                SET student_points = {current_points},
+                                    student_net_points += {current_points}
                                 WHERE student_username = '{student_id}'
                             ''')
             conn.commit()
@@ -270,14 +273,39 @@ async def update_mission_status(student_id: str, mission_name: str, status_: str
             )
         
 @router.get('/get_all_on_going_missions', tags=['missions', 'student'])
-async def get_all_pending_approval_redemptions(current_user: any = Depends(get_current_user)) -> Response:
+async def get_all_pending_approval_redemptions(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    _result = cursor.execute('''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points
+    _result = cursor.execute(f'''SELECT student_id, dbo.Missions.mission_name, status, start_date, mission_desc, mission_points
                                 FROM dbo.StudentsMissionsRelationship
                                 INNER JOIN dbo.Missions
                                 ON dbo.Missions.mission_name = dbo.StudentsMissionsRelationship.mission_name
-                                WHERE dbo.StudentsMissionsRelationship.status = 2''').fetchall()
+                                WHERE dbo.StudentsMissionsRelationship.status = 2 AND dbo.Missions.mission_created_in_class = '{_class}' ''').fetchall()
+    redeems = {}
+    for index, redempt in enumerate(_result):
+        key = f'missioner_{index}'
+        redeems[key] = {
+            'student': redempt[0],
+            'mission_name': redempt[1],
+            'status': redempt[2],
+            'started_date': redempt[3],
+            'description': redempt[4],
+            'points': redempt[5]
+        }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'on_going_missions': redeems
+        }
+    )
+
+@router.get('/get_on_going_missions_by_mission', tags=['missions', 'student'])
+async def get_all_pending_approval_redemptions(_class: str, mission_name: str, current_user: any = Depends(get_current_user)) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    _result = cursor.execute(f'''SELECT student_id, mission_name, status, start_date, mission_desc, mission_points
+                                FROM dbo.StudentsMissionsRelationship
+                                WHERE dbo.StudentsMissionsRelationship.status = 2 AND dbo.StudentsMissionsRelationship.class_id = '{_class}' ''').fetchall()
     redeems = {}
     for index, redempt in enumerate(_result):
         key = f'missioner_{index}'
