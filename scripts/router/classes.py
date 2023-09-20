@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from .body.classes import ClassCreationForm
+from .body.user import AddStudentObject
 import jwt
 import os
 import pyodbc
@@ -283,19 +284,24 @@ async def get_all_classes(current_user: any = Depends(get_current_user)) -> Resp
     )
 
 
-@router.get('/add_student', tags=['class', 'student'])
-async def add_student(_class: str, student_username: str, current_user: any = Depends(get_current_user)) -> Response:
+@router.post('/add_student', tags=['class', 'student'])
+async def add_student(current_user: any = Depends(get_current_user), data: AddStudentObject = None) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
+    cipher = Fernet(SECRET_KEY.encode())
     try:
+        if cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{data.username}' ''') is None:
+            cursor.execute(f''' INSERT INTO dbo.Students (student_username, student_fname, student_surname, student_points, student_hashed_pwd, student_net_points) 
+                                VALUES ('{data.username}', '{cipher.encrypt(data.fname)}', '{cipher.encrypt(data.surname)}', 0, '{cipher.encrypt('11110000')}', 0) ''')
+            conn.commit()
         cursor.execute(
-            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{student_username}', '{_class}') ''')
+            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{data.username}', '{data._class}') ''')
         conn.commit()
         conn.close()
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
-                'message': f'student {student_username} has been added to class {_class}'
+                'message': f'student {data.username} has been added to class {data._class}'
             }
         )
     except Exception as e:

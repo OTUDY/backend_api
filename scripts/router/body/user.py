@@ -35,4 +35,10 @@ class AddStudentByLink(BaseModel):
     pwd: str
     firstname: str
     surname: str
+
+class AddStudentObject(BaseModel):
+    username: str
+    fname: str
+    surname: str
+    _class: str
     
