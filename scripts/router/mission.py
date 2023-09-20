@@ -63,7 +63,7 @@ async def create_mission(current_user: UserKey = Depends(get_current_user), data
         INSERT INTO Missions
         (mission_name, mission_desc, mission_points, mission_active_status, mission_expired_date, mission_created_in_class)
         VALUES
-        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)}, '{data.mission_class_id}')
+        ('{data.mission_name}', '{data.mission_desc}', '{data.mission_points}', {int(data.mission_active_status)}, '{data.mission_expired_date}', '{data.mission_class_id}')
     '''
     cursor.execute(query)
     conn.commit()
@@ -83,10 +83,10 @@ async def create_mission(current_user: UserKey = Depends(get_current_user), data
         )
     
 @router.get('/get_mission_detail/', tags=['missions'])
-def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_current_user)) -> Response:
+def get_mission_detail(mission_name: str, _class: str, current_user: UserKey = Depends(get_current_user)) -> Response:
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    query: str = f'''SELECT * FROM dbo.Missions WHERE mission_name = '{mission_name}' '''
+    query: str = f'''SELECT * FROM dbo.Missions WHERE mission_name = '{mission_name}' AND mission_created_in_class = '{_class}' '''
     result = cursor.execute(query).fetchone()
     if not result:
         return JSONResponse(
@@ -96,12 +96,15 @@ def get_mission_detail(mission_name: str, current_user: UserKey = Depends(get_cu
             }
         )
     response_body = {
-        'mission_name': result[0],
-        'mission_desc': result[1],
-        'mission_redeem_points': result[2],
-        'mission_pic': result[3],
-        'mission_active_status': result[4]
-    }
+                'name': result[0],
+                'description': result[1],
+                'redeem_points': result[2],
+                'pic': result[3],
+                'active_status': bool(result[4]),
+                'expired_date': result[5],
+                'created_in_class': result[6],
+                'tags': result[7]
+            }
     conn.close()
     return JSONResponse(
             status_code=status.HTTP_200_OK,
