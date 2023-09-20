@@ -161,7 +161,7 @@ async def update_mission(current_user: any = Depends(get_current_user), data: Cr
                                          mission_active_status = {int(data.mission_active_status)},
                                          mission_expired_date = '{data.mission_expired_date}',
                                          mission_subject = '{'[' + ', '.join(data.tags) + ']'}'
-                     WHERE dbo.mission_name = '{data.mission_name}' AND dbo.mission_created_in_class = '{data.mission_class_id}' '''
+                     WHERE mission_name = '{data.mission_name}' AND mission_created_in_class = '{data.mission_class_id}' '''
     cursor.execute(query)
     conn.commit()
     conn.close()
