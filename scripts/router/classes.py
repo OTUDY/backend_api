@@ -194,6 +194,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     teachers = []
     missions = []
     activities = []
+    _added_missions = []
     for class_data in result:
         if class_data[0] != None:
             students.append({
@@ -201,14 +202,17 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
             'firstName': cipher.decrypt(class_data[8].encode()).decode(),
             'surName': cipher.decrypt(class_data[9].encode()).decode()
         })
-        missions.append(
-            {
-                'name': class_data[3],
-                'tags': class_data[4],
-                'reward_points': class_data[10],
-                'description': class_data[11]
-            }
-        )
+        if class_data[3] not in _added_missions:
+            missions.append(
+                {
+                    'name': class_data[3],
+                    'tags': class_data[4],
+                    'reward_points': class_data[10],
+                    'description': class_data[11]
+                }
+            )
+            _added_missions.append(class_data[3])
+        
         if class_data[6] != None:
             if class_data[6] not in teachers:
                 teachers.append(class_data[6])
@@ -225,6 +229,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         'classActivities': activities,
         'classGroups': []
     }
+    conn.close()
+    _added_missions.clear()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=response_data
