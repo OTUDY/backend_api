@@ -58,8 +58,8 @@ def reward_root() -> Response:
 
 @router.post('/create_reward', tags=['rewards'])
 def create_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
-    query: str = f''' INSERT INTO dbo.Rewards (reward_name, reward_desc, reward_spent_points, reward_active_status, class_id)
-                      VALUES ('{data.reward_name}', '{data.reward_desc}', {data.reward_spent_points}, {int(data.reward_active_status)}, '{data.class_id}') '''
+    query: str = f''' INSERT INTO dbo.Rewards (reward_name, reward_desc, reward_spent_points, reward_active_status, class_id, reward_amount)
+                      VALUES ('{data.reward_name}', '{data.reward_desc}', {data.reward_spent_points}, {int(data.reward_active_status)}, '{data.class_id}', {data.amount}) '''
     cursor.execute(query)
     conn.commit()
     return JSONResponse(
@@ -86,7 +86,8 @@ def get_reward_detail(reward_name: str, _class: str, current_user: any = Depends
         'reward_pic': result[2],
         'reward_spent_points': result[3],
         'reward_active_status': result[4],
-        'class_id': result[5]
+        'class_id': result[5],
+        'reward_amount': result[6]
     }
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -102,7 +103,8 @@ def update_reward(current_user: any = Depends(get_current_user), data: CreateRew
                                    reward_pic = '{data.reward_pic}', 
                                    reward_spent_points = {data.reward_spent_points}, 
                                    reward_active_status = {int(data.reward_active_status)},
-                                   class_id = '{data.class_id}'
+                                   class_id = '{data.class_id}',
+                                   reward_amount = {data.amount}
                   WHERE reward_name = '{data.reward_name}' AND class_id = '{data.class_id}' '''
     )
     conn.commit()
@@ -184,7 +186,8 @@ def get_all_reward(_class: str, current_user: any = Depends(get_current_user)) -
                 'reward_desc': result[1],
                 'reward_pic': result[2],
                 'reward_spent_points': result[3],
-                'reward_active_status': result[4]
+                'reward_active_status': result[4],
+                'reward_amount': result[6]
             })
     return JSONResponse(
             status_code=status.HTTP_200_OK,
