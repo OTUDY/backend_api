@@ -208,7 +208,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
             if class_data[6] not in teachers:
                 teachers.append(class_data[6])
         if class_data[3] != None:
-            for subject in eval(class_data[4]):
+            for subject in class_data[4]:
                 if subject not in list(missions.keys()):
                     missions[subject] = []
                 else:
