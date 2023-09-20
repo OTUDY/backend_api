@@ -281,17 +281,17 @@ async def get_all_pending_approval_redemptions(_class: str, current_user: any = 
                                 INNER JOIN dbo.Missions
                                 ON dbo.Missions.mission_name = dbo.StudentsMissionsRelationship.mission_name
                                 WHERE dbo.StudentsMissionsRelationship.status = 2 AND dbo.Missions.mission_created_in_class = '{_class}' ''').fetchall()
-    redeems = {}
+    redeems = []
     for index, redempt in enumerate(_result):
         key = f'missioner_{index}'
-        redeems[key] = {
+        redeems.append({
             'student': redempt[0],
             'mission_name': redempt[1],
             'status': redempt[2],
             'started_date': redempt[3],
             'description': redempt[4],
             'points': redempt[5]
-        }
+        })
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -306,17 +306,16 @@ async def get_all_pending_approval_redemptions(_class: str, mission_name: str, c
     _result = cursor.execute(f'''SELECT student_id, mission_name, status, start_date, mission_desc, mission_points
                                 FROM dbo.StudentsMissionsRelationship
                                 WHERE dbo.StudentsMissionsRelationship.status = 2 AND dbo.StudentsMissionsRelationship.class_id = '{_class}' ''').fetchall()
-    redeems = {}
+    redeems = []
     for index, redempt in enumerate(_result):
-        key = f'missioner_{index}'
-        redeems[key] = {
+        redeems.append({
             'student': redempt[0],
             'mission_name': redempt[1],
             'status': redempt[2],
             'started_date': redempt[3],
             'description': redempt[4],
             'points': redempt[5]
-        }
+        })
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
