@@ -294,8 +294,9 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
     cursor = conn.cursor()
     cipher = Fernet(SECRET_KEY.encode())
     try:
-        if cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{data.username}' ''') is None:
-            cursor.execute(f''' INSERT INTO dbo.Students (student_username, student_fname, student_surname, student_points, student_hashed_pwd, student_net_points) 
+        if cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{data.username}' ''').fetchone() is None:
+            cursor.execute(f''' INSERT INTO dbo.Students 
+                                            (student_username, student_fname, student_surname, student_points, student_hashed_pwd, student_net_points) 
                                 VALUES ('{data.username}', '{cipher.encrypt(data.fname)}', '{cipher.encrypt(data.surname)}', 0, '{cipher.encrypt('11110000')}', 0) ''')
             conn.commit()
         cursor.execute(
