@@ -299,13 +299,13 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
                                 VALUES ('{data.username}', '{cipher.encrypt(data.fname)}', '{cipher.encrypt(data.surname)}', 0, '{cipher.encrypt('11110000')}', 0) ''')
             conn.commit()
         cursor.execute(
-            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{data.username}', '{data._class}') ''')
+            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{data.username}', '{data.class_id}') ''')
         conn.commit()
         conn.close()
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
-                'message': f'student {data.username} has been added to class {data._class}'
+                'message': f'student {data.username} has been added to class {data.class_id}'
             }
         )
     except Exception as e:

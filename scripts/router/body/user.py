@@ -40,5 +40,5 @@ class AddStudentObject(BaseModel):
     username: str
     fname: str
     surname: str
-    _class: str
+    class_id: str
     
