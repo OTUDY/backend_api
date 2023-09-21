@@ -195,13 +195,16 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     missions = []
     activities = []
     _added_missions = []
+    _added_students = []
     for class_data in result:
         if class_data[0] != None:
-            students.append({
-            'studentId': class_data[0],
-            'firstName': cipher.decrypt(class_data[8].encode()).decode(),
-            'surName': cipher.decrypt(class_data[9].encode()).decode()
-        })
+            if class_data[0] not in _added_students:
+                students.append({
+                'studentId': class_data[0],
+                'firstName': cipher.decrypt(class_data[8].encode()).decode(),
+                'surName': cipher.decrypt(class_data[9].encode()).decode()
+            })
+                _added_students.append(class_data[0])
         if class_data[3] not in _added_missions:
             missions.append(
                 {
