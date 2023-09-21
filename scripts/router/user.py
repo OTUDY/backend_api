@@ -327,8 +327,9 @@ def add_user(student_info: AddStudent) -> Response:
                           '{cipher.encrypt(student_info.firstname.encode()).decode()}',
                           '{cipher.encrypt(student_info.surname.encode()).decode()}',
                           0,
-                          '{student_info.class_name}',
-                          '{cipher.encrypt(student_info.pwd.encode()).decode()}'
+                          '',
+                          '{cipher.encrypt(student_info.pwd.encode()).decode()}',
+                          0
                        ) 
                    ''')
     conn.commit()
