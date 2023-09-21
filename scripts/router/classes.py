@@ -234,6 +234,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     }
     conn.close()
     _added_missions.clear()
+    _added_students.clear()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=response_data
