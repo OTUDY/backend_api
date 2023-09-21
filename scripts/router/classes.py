@@ -297,7 +297,7 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
         if cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{data.username}' ''').fetchone() is None:
             cursor.execute(f''' INSERT INTO dbo.Students 
                                             (student_username, student_fname, student_surname, student_points, student_hashed_pwd, student_net_points) 
-                                VALUES ('{data.username}', '{cipher.encrypt(data.fname)}', '{cipher.encrypt(data.surname)}', 0, '{cipher.encrypt('11110000')}', 0) ''')
+                                VALUES ('{data.username}', '{cipher.encrypt(data.fname.encode()).decode()}', '{cipher.encrypt(data.surname.encode()).decode()}', 0, '{cipher.encrypt('11110000'.encode()).decode()}', 0) ''')
             conn.commit()
         cursor.execute(
             f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{data.username}', '{data.class_id}') ''')
