@@ -37,8 +37,8 @@ class AddStudentByLink(BaseModel):
     surname: str
 
 class AddStudentObject(BaseModel):
-    username: str
     fname: str
     surname: str
     class_id: str
+    inclass_id: int
     

@@ -137,6 +137,8 @@ async def delete_class(_class: str, current_user: any = Depends(get_current_user
         f'''DELETE FROM dbo.ClassMissionRelationship WHERE class_id = '{_class}' ''')
     cursor.execute(
         f'''DELETE FROM dbo.TeachersClassesRelationship WHERE class_id = '{_class}' ''')
+    cursor.execute(
+        f'''DELETE FROM dbo.StudentsClassesRelationship WHERE class_id = '{_class}' ''')
     cursor.execute(f'''DELETE FROM dbo.Classes WHERE class_id = '{_class}' ''')
     conn.commit()
     conn.close()
@@ -298,13 +300,13 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
     cursor = conn.cursor()
     cipher = Fernet(SECRET_KEY.encode())
     try:
-        if cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{data.username}' ''').fetchone() is None:
+        if cursor.execute(f''' SELECT student_username FROM dbo.Students WHERE student_username = '{data.fname}.{data.surname[0:3]}' ''').fetchone() is None:
             cursor.execute(f''' INSERT INTO dbo.Students 
                                             (student_username, student_fname, student_surname, student_points, student_hashed_pwd, student_net_points) 
-                                VALUES ('{data.username}', '{cipher.encrypt(data.fname.encode()).decode()}', '{cipher.encrypt(data.surname.encode()).decode()}', 0, '{cipher.encrypt('11110000'.encode()).decode()}', 0) ''')
+                                VALUES ('{data.fname}.{data.surname[0:3]}', '{cipher.encrypt(data.fname.encode()).decode()}', '{cipher.encrypt(data.surname.encode()).decode()}', 0, '{cipher.encrypt('11110000'.encode()).decode()}', 0) ''')
             conn.commit()
         cursor.execute(
-            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{data.username}', '{data.class_id}') ''')
+            f''' INSERT INTO dbo.StudentsClassesRelationship VALUES ('{data.fname}.{data.surname[0:3]}', '{data.class_id}', {data.inclass_id}) ''')
         conn.commit()
         conn.close()
         return JSONResponse(
