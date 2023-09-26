@@ -166,7 +166,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                                 dbo.Students.student_fname,
                                 dbo.Students.student_surname,
                                 dbo.Missions.mission_points,
-                                dbo.Missions.mission_desc
+                                dbo.Missions.mission_desc,
+                                dbo.StudentsClassesRelationship.inclass_id
                         FROM dbo.Classes
                         LEFT JOIN dbo.StudentsClassesRelationship
                         ON dbo.StudentsClassesRelationship.class_id = dbo.Classes.class_id
@@ -204,7 +205,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 students.append({
                 'studentId': class_data[0],
                 'firstName': cipher.decrypt(class_data[8].encode()).decode(),
-                'surName': cipher.decrypt(class_data[9].encode()).decode()
+                'surName': cipher.decrypt(class_data[9].encode()).decode(),
+                'No': class_data[10]
             })
                 _added_students.append(class_data[0])
         if class_data[3] not in _added_missions:
