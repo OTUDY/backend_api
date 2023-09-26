@@ -382,7 +382,6 @@ async def edit_student_data(current_user: any = Depends(get_current_user), data:
                             VALUES ('{data.fname}.{data.surname}',
                                     '{data.class_id}',
                                      {data.inclass_no}
-                                   )
                         '''
                     )
         conn.commit()
