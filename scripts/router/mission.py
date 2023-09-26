@@ -137,12 +137,57 @@ def get_all_mission(_class: str, current_user: any = Depends(get_current_user)) 
     _result = cursor.execute(f'''SELECT * FROM dbo.Missions WHERE mission_created_in_class = '{_class}' ''').fetchall()
     missions = []
     for result in _result:
+        status = False
+        try:
+            expired_date = ''
+            if '/' in result[5]:
+                expired_date = result[5].split('/')
+            elif ' ' in result[5]:
+                expired_date = result[5].split(' ')
+            months_thai = {
+                        "มกราคม": 1,
+                        "กุมภาพันธ์": 2,
+                        "มีนาคม": 3,
+                        "เมษายน": 4,
+                        "พฤษภาคม": 5,
+                        "มิถุนายน": 6,
+                        "กรกฎาคม": 7,
+                        "สิงหาคม": 8,
+                        "กันยายน": 9,
+                        "ตุลาคม": 10,
+                        "พฤศจิกายน": 11,
+                        "ธันวาคม": 12
+                    }
+
+            months_english = {
+                        "January": 1,
+                        "February": 2,
+                        "March": 3,
+                        "April": 4,
+                        "May": 5,
+                        "June": 6,
+                        "July": 7,
+                        "August": 8,
+                        "September": 9,
+                        "October": 10,
+                        "November": 11,
+                        "December": 12
+                    }
+
+            if months_thai[expired_date[1]] is not None:
+                expired_date[1] = months_thai[expired_date[1]]
+            elif months_english[expired_date[1]] is not None:
+                expired_date[1] = months_english[expired_date[1]]
+            if datetime.now() < datetime(int(expired_date[2]), int(expired_date[1]), int(expired_date[0])):
+                status = True
+        except:
+            status = "Error, this field requires datetime format."
         missions.append({
                 'name': result[0],
                 'description': result[1],
                 'redeem_points': result[2],
                 'pic': result[3],
-                'active_status': bool(result[4]),
+                'active_status': status,
                 'expired_date': result[5],
                 'created_in_class': result[6],
                 'tags': result[7]
