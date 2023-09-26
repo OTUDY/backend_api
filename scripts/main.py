@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Response, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from scripts.router.user import router as user_router
 from scripts.router.mission import router as mission_router
@@ -25,6 +25,9 @@ app.add_middleware(
 @app.get('/', status_code=status.HTTP_200_OK)
 def index() -> Response:
     return JSONResponse(status_code=status.HTTP_200_OK, content={'message': 'Accessing main route index.'})
+
+# def catch_all(path: str, request: Request) -> HTMLResponse:
+#     return HTM('/', request)
 
 app.include_router(user_router, prefix='/api/v1')
 app.include_router(mission_router, prefix='/api/v1')
