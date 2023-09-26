@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Response, status, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
-from .body.user import RegisterForm, LoginForm, AddStudent
+from .body.user import RegisterForm, LoginForm, AddStudent, EditStudentObject
 from .body.token import UserKey
 from passlib.context import CryptContext
 import os
@@ -359,4 +359,36 @@ async def get_leaderboard(current_user: any = Depends(get_current_user)) -> Resp
         status_code=status.HTTP_200_OK,
         content=leaderboard
     )
+
+@router.put('/student/edit_student_detail', tags=['student', 'user'])
+async def edit_student_data(current_user: any = Depends(get_current_user), data: EditStudentObject = None) -> Response:
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+    cipher = Fernet(SECRET.encode())
+    try: 
+        cursor.execute(f''' UPDATE dbo.Students 
+                            SET student_fname = '{cipher.encrypt(data.fname.encode()).decode()}',
+                                student_surname = '{cipher.encrypt(data.surname.encode()).decode()}',
+                                student_username = '{data.fname}.{data.surname}'
+                            WHERE student_username = '{data.original_id}';
+                        ''')
+        cursor.execute(f'''
+                            UPDATE dbo.StudentsClassesRelationship
+                            SET inclass_id = {data.inclass_no},
+                                student_id = '{data.fname}.{data.surname}'
+                            WHERE student_id = '{data.original_id}'
+                            AND class_id = '{data.class_id}'
+                        '''
+                    )
+        conn.commit()
+        conn.close()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': 'Successfully editted students` detail.'
+            }
+        )
+    except Exception as e:
+        return str(e)
+
     

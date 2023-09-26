@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class RegisterForm(BaseModel):
     email: str
@@ -41,4 +41,11 @@ class AddStudentObject(BaseModel):
     surname: str
     class_id: str
     inclass_id: int
+
+class EditStudentObject(BaseModel):
+    fname: str = Field("First name of the student: ")
+    surname: str = Field("Last name of the student: ")
+    inclass_no: int = Field("No.: ")
+    original_id: str = Field('Original ID (e.g. FirstName.LastName): ')
+    class_id: str = Field('Class ID: ')
     
