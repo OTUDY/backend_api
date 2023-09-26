@@ -366,6 +366,10 @@ async def edit_student_data(current_user: any = Depends(get_current_user), data:
     cursor = conn.cursor()
     cipher = Fernet(SECRET.encode())
     try: 
+        cursor.execute(f''' DELETE
+                            FROM dbo.StudentsClassesRelationship
+                            WHERE student_id = '{data.original_id}' 
+                            AND class_id = '{data.class_id}' ''')
         cursor.execute(f''' UPDATE dbo.Students 
                             SET student_fname = '{cipher.encrypt(data.fname.encode()).decode()}',
                                 student_surname = '{cipher.encrypt(data.surname.encode()).decode()}',
@@ -373,11 +377,11 @@ async def edit_student_data(current_user: any = Depends(get_current_user), data:
                             WHERE student_username = '{data.original_id}';
                         ''')
         cursor.execute(f'''
-                            UPDATE dbo.StudentsClassesRelationship
-                            SET inclass_id = {data.inclass_no},
-                                student_id = '{data.fname}.{data.surname}'
-                            WHERE student_id = '{data.original_id}'
-                            AND class_id = '{data.class_id}'
+                            INSERT
+                            INTO dbo.StudentsClassesRelationship
+                            VALUES ('{data.fname}.{data.surname}',
+                                    '{data.class_id}',
+                                     {data.inclass_no}
                         '''
                     )
         conn.commit()
