@@ -2,14 +2,17 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from scripts.router.user import router as user_router
-from scripts.router.mission import router as mission_router
-from scripts.router.classes import router as class_router
-from scripts.router.reward import router as reward_router
+# from .scripts.router.user import router as user_router
+# from .scripts.router.mission import router as mission_router
+# from .scripts.router.classes import router as class_router
+# from .scripts.router.reward import router as reward_router
+
+from mangum import Mangum
 
 import uvicorn
 
 app = FastAPI(docs_url='/docs')
+handler = Mangum(app)
 
 origins = [
     "*"  # Replace with your frontend URL,  # Allow localhost with IP
@@ -17,15 +20,16 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    HTTPSRedirectMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.add_middleware(HTTPSRedirectMiddleware)
+
 @app.get('/', status_code=status.HTTP_200_OK)
-def index() -> Response:
+async def index() -> Response:
     return JSONResponse(status_code=status.HTTP_200_OK, content={'message': 'Accessing main route index.'})
 
 # def catch_all(path: str, request: Request) -> HTMLResponse:
@@ -35,7 +39,3 @@ def index() -> Response:
 # app.include_router(mission_router, prefix='/api/v1')
 # app.include_router(class_router, prefix="/api/v1")
 # app.include_router(reward_router, prefix="/api/v1")
-
-
-if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
