@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Response, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 # from .scripts.router.user import router as user_router
@@ -8,15 +8,15 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 # from .scripts.router.reward import router as reward_router
 
 from mangum import Mangum
-import ssl
+#import ssl
 
 #import uvicorn
 
 app = FastAPI(docs_url='/docs')
 handler = Mangum(app)
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain('cert.pem', keyfile='key.pem')
+# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+# ssl_context.load_cert_chain('cert.pem', keyfile='key.pem')
 
 origins = [
     "*"  # Replace with your frontend URL,  # Allow localhost with IP
@@ -35,6 +35,10 @@ app.add_middleware(HTTPSRedirectMiddleware)
 @app.get('/', status_code=status.HTTP_200_OK)
 async def index() -> Response:
     return JSONResponse(status_code=status.HTTP_200_OK, content={'message': 'Accessing main route index.'})
+
+@app.route('/{_:path}')
+async def https_redirect(request: Request):
+    return RedirectResponse(request.url.replace(scheme='https'))
 
 # def catch_all(path: str, request: Request) -> HTMLResponse:
 #     return HTM('/', request)
