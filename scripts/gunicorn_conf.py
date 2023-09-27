@@ -9,5 +9,5 @@ worker_class = 'uvicorn.workers.UvicornWorker'
 
 # Logging Options
 loglevel = 'debug'
-accesslog = '/home/backend_api/access_log'
-errorlog =  '/home/backend_api/error_log'
+accesslog = '/home/ubuntu/backend_api/access_log'
+errorlog =  '/home/ubuntu/backend_api/error_log'
