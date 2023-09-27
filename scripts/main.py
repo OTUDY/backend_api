@@ -8,11 +8,15 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 # from .scripts.router.reward import router as reward_router
 
 from mangum import Mangum
+import ssl
 
-import uvicorn
+#import uvicorn
 
 app = FastAPI(docs_url='/docs')
 handler = Mangum(app)
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain('cert.pem', keyfile='key.pem')
 
 origins = [
     "*"  # Replace with your frontend URL,  # Allow localhost with IP
@@ -26,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#app.add_middleware(HTTPSRedirectMiddleware)
+app.add_middleware(HTTPSRedirectMiddleware)
 
 @app.get('/', status_code=status.HTTP_200_OK)
 async def index() -> Response:

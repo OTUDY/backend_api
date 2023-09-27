@@ -7,3 +7,5 @@ uvicorn
 pyodbc
 cryptography
 mangum
+pydantic
+pydantic_core
