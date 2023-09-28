@@ -105,7 +105,7 @@ class DynamoManager:
         try:
             response = self.table.update_item(
                 Key={'id': data['id']},
-                UpdateExpression=f'set level=:l, description=:d',
+                UpdateExpression=f'set Classes.level=:l, Classes.description=:d',
                 ExpressionAttributeValues={
                     ':l': data['level'],
                     ':d': data['description']
