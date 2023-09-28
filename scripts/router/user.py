@@ -17,7 +17,7 @@ load_dotenv()
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET = 'CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y='
+SECRET = os.environ.get('key')
 ALGORITHM = 'HS256'
 crud = DynamoManager('Users')
 
@@ -46,7 +46,7 @@ def root() -> Response:
 # --------------------
 
 # ------ Register ------
-@router.post('/user/register/', tags=['user'])
+@router.post('/register/', tags=['user'])
 def register(data: RegisterForm) -> Response:
     ''' Param
     '''
@@ -65,6 +65,7 @@ def register(data: RegisterForm) -> Response:
     try:
         crud.insert([{
             "id": data.email,
+            'hashedPassword': cipher.encrypt(data.pwd.encode()).decode(),
             'firstName': cipher.encrypt(data.fname.encode()).decode(),
             'lastName': cipher.encrypt(data.surname.encode()).decode(),
             'phone': cipher.encrypt(data.phone.encode()).decode(),
@@ -117,12 +118,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
 
 # ------------------
-@router.get("/user/get_user_detail", tags=['user'])
+@router.get("/get_user_detail", tags=['user'])
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
     cipher = Fernet(SECRET.encode())
     try:
         response = crud.get(id=current_user)
-        data = response['Item']
+        data = response
         for k, v in data.items():
             if k not in ['id', 'hashedPassword', 'affiliation', 'role', 'points', 'netPoints']:
                 data[k] = cipher.decrypt(v.encode()).decode()
@@ -135,7 +136,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
 # ------------------
 
 # ------ Edit ------
-@router.put("/user/edit_user_detail", tags=['user'])
+@router.put("/edit_user_detail", tags=['user'])
 def edit_detail(current_user: any = Depends(get_current_user), edit_form: RegisterForm = None) -> Response:
     if current_user != edit_form.email:
         return JSONResponse(

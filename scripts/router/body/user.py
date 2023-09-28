@@ -8,7 +8,6 @@ class RegisterForm(BaseModel):
     phone: str
     role: int = 0 | 1 | 2
     affiliation: str
-    class_id: str
 
 class LoginForm(BaseModel):
     email: str
@@ -21,7 +20,6 @@ class EditForm(BaseModel):
     phone: str
     role: int = 0 | 1 | 2
     affiliation: str
-    class_id: str
 
 class AddStudent(BaseModel):
     username: str
