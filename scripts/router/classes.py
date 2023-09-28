@@ -48,7 +48,7 @@ def class_root() -> Response:
 
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    data = [{
+    _data = [{
         'id': data.class_name,
         'level': data.level,
         'description': data.class_desc,
@@ -60,12 +60,12 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
         'teachers': [current_user]
     }]
     try:
-        crud.insert(data)
+        crud.insert(_data)
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={
                 'message': 'successfully created class.',
-                'class': data.class_name,
+                'class': _data,
                 'assigned_teacher': current_user
             }
         )
