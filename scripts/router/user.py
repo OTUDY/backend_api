@@ -17,7 +17,7 @@ load_dotenv()
 router = APIRouter(prefix='/user')
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-SECRET = os.environ.get('key')
+SECRET = 'CnDwflTkzPzxviKR81DllzpoZBzCaDcsPrxclGkrg0Y='
 ALGORITHM = 'HS256'
 crud = DynamoManager('Users')
 
