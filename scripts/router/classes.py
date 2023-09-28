@@ -128,7 +128,7 @@ async def delete_class(_class: str, current_user: any = Depends(get_current_user
 def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     cipher = Fernet(SECRET_KEY.encode())
     try:
-        data,_ = crud.getClassDetail(_class)
+        data = crud.getClassDetail(_class)
         if 'Item' in data:
             _d = data['Item']
             response = {
@@ -154,7 +154,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
-                content=response
+                content=response,
+                d=_d
             )
         else :
             return 'Unable to find class.'

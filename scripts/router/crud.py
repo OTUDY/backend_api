@@ -173,7 +173,7 @@ class DynamoManager:
         })
                 
     def getClassDetail(self, id):
-        response = self.table.get_item(Key={
+        response = self._class_table.get_item(Key={
             'id': id
         })
         return response
