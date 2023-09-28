@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-# from .scripts.router.user import router as user_router
+from router.user import router as user_router
 # from .scripts.router.mission import router as mission_router
 # from .scripts.router.classes import router as class_router
 # from .scripts.router.reward import router as reward_router
@@ -43,7 +43,7 @@ async def root() -> Response:
 # def catch_all(path: str, request: Request) -> HTMLResponse:
 #     return HTM('/', request)
 
-# app.include_router(user_router, prefix='/api/v1')
+app.include_router(user_router, prefix='/api/v1')
 # app.include_router(mission_router, prefix='/api/v1')
 # app.include_router(class_router, prefix="/api/v1")
 # app.include_router(reward_router, prefix="/api/v1")

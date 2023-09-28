@@ -1,88 +1,105 @@
-# import sqlite3
-# import json
-# import pyodbc as odbc
-# from datetime import datetime
+import boto3
+from boto3.dynamodb.conditions import Key
 
-# class SQLiteManager:
-#     def __init__(self : object, db_name : str) -> None:
-#         self.connection = sqlite3.connect(db_name, check_same_thread=False)
-#         self.cursor = self.connection.cursor()
+class DynamoManager:
+    def __init__(self, table: str) -> None:
+        self.db = boto3.resource('dynamodb')
+        self._table = table
+        self.table = self.db.Table(table)
+        self._user_table = self.db.Table('Users')
+        self._class_table = self.db.Table('Classes')
 
-#     def get(self : object, query : str) -> list:
-#         return self.cursor.execute(query).fetchall()
+    def get(self, all: bool = False, id: str = None) -> list:
+        response_data = None
+        if all:
+            response: dict = self.table.scan()
+            data_count: int = response['Count']
+            data: list = response['Items']
+            if data_count > 0:
+                response_data = data.copy()
+        else:
+            response = self.table.get_item(Key={
+                'id': id
+            })
+            if response.get('Item') is not None:
+                response_data = response['Item']
+        return response_data
     
-#     def add(self : object, query : str) -> dict:
-#         self.cursor.execute(query)
-#         self.connection.commit()
-#         return True
-    
-#     def edit(self : object, query : str) -> dict:
-#         self.cursor.execute(query)
-#         self.connection.commit()
-#         return {
-#             'status': 0,
-#             'detail': {
-#                 'message': 'Successfully editted item(s) in database.',
-#                 'query' : query 
-#             }
-#         }
-    
-#     def delete(self : object, query : str) -> dict:
-#         try :
-#             self.cursor.execute(query)
-#             self.connection.commit()
-#         except:
-#             raise Exception('Error: SQL Query or Syntax is not in the right format, please look forward to check.')
-#         return {
-#             'status': 0,
-#             'detail': {
-#                 'message': 'Successfully added item(s) to database.',
-#                 'query' : query 
-#             }
-#         }
-    
-#     def close(self : object) -> dict:
-#         try : 
-#             self.connection.close()
-#         except:
-#             raise Exception('Error: Could not proceed to close the connection of the database, try again later.')
-#         return {
-#             'status': 0,
-#             'detail': {
-#                 'message': 'Database connection has been closed.',
-#             }
-#         }
-    
-# class SQLManager:
-#     def __init__(self, connection_string: str) -> None:
-#         self.conn: any = odbc.connect(connection_string)
-#         self.cursor: any = self.conn.cursor()
+    def insert(self, items: list) -> any:
+        returned_data = {
+            'missingStudents': [],
+            'missionTeachers': []
+        }
+        if self._table == "Users":
+            for item in items:
+                self.table.put_item(Item=item)
+        elif self._table == 'Classes':
+            for index, item in enumerate(items):
+                for student in item['students']:
+                    if self._user_table.get_item(Key={
+                        'id': student
+                    }).get('Item') is None:
+                        returned_data['missingStudents'].append(student)
+                        _idx = items[index]['students'].index(student)
+                        items[index]['students'].pop(_idx)
+                for teacher in item['teachers']:
+                    if self._user_table.get_item(Key={
+                        'id': teacher
+                    }).get('Item') is None:
+                        returned_data['missionTeachers'].append(teacher)
+                        _idx = items[index]['teachers'].index(student)
+                        items[index]['teachers'].pop(_idx)
+                self.table.put_item(Item=item)
 
-#     def get(self, query: str) -> list:
-#         result: list = self.cursor.execute(query)
-#         return result.fetchall()
+        return returned_data
     
-#     def operate(self, query: str, operation: str) -> any:
-#         try: 
-#             self.cursor.execute(query)
-#             self.conn.commit()
-#             with ('log.json', 'a') as f:
-#                 data: dict = {
-#                     'operation': operation,
-#                     'query': query,
-#                     'created_at': datetime.now()
-#                 }
-#                 f.write(json.dumps(data))
-#             return True
-#         except Exception as e:
-#             return e
+    def updateUserDetail(self, item) -> any:
+        try:
+            response = self.table.update_item(
+                Key={'id': item['id']},
+                UpdateExpression=f'set firstName=:f, lastName=:s, hashedPassword=:p, phone=:ph, affiliation=:af',
+                ExpressionAttributeValues={
+                    ':f': item['firstName'],
+                    ':s': item['lastName'],
+                    ':p': item['hashedPassword'],
+                    ':ph': item['phone'],
+                    ':af': item['affiliation']
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+        except Exception as e:
+            return str(e)
+        else:
+            return response['Attributes']
+
+    def updateStudentPoint(self, points: int) -> bool:
+        pass
+
+    def getRole(self, id: str):
+        try: 
+            response = self.table.get_item(Key={
+                'id': id
+            })
+            if response.get('Item') is None:
+                return False
+            return response['Item']['role']
+        except Exception as e:
+            return str(e)
         
-# if __name__ == '__main__':
-#     manager: SQLManager = SQLManager('Driver={ODBC Driver 17 for SQL Server};Server=tcp:otudy-team.database.windows.net,1433;Database=main-db;Uid=aketdOTUDY012023;Pwd=oT-,872%54Asdwzzsq>*90;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;')
-#     print(manager.get('SELECT * FROM dbo.Users;'))
-        
-    
-        
+    def getAssignedClasses(self, id):
+        try:
+            result = []
+            response = self._class_table.scan()
+            if response.get('Items') is None:
+                return False
+            for _class in response['Items']:
+                if id in _class['teachers']:
+                    result.append(_class['id'])
+
+            return result
+        except Exception as e:
+            return str(e)
+
+
+                        
             
-    
-
