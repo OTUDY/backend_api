@@ -81,7 +81,7 @@ def update_class_detail(current_user: any = Depends(get_current_user), data: Cla
             'level': data.level,
             'description': data.class_desc
         }
-        response = crud.updateClassDetail(data)
+        response = crud.updateClassDetail(_data)
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={
