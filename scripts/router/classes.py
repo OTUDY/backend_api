@@ -65,7 +65,7 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
             status_code=status.HTTP_201_CREATED,
             content={
                 'message': 'successfully created class.',
-                'class': data.__dict__,
+                'class': data.class_name,
                 'assigned_teacher': current_user
             }
         )
