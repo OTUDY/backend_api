@@ -129,35 +129,34 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
     cipher = Fernet(SECRET_KEY.encode())
     try:
         data = crud.getClassDetail(_class)
-        # if 'Item' in data:
-        #     _d = data['Item']
-        #     response = {
-        #         'id': _d['id'],
-        #         'level': _d['level'],
-        #         'students': [],
-        #         'missions': _d['missions'],
-        #         'rewards': _d['rewards'],
-        #         'activities': _d['activities'],
-        #         'items': _d['items'],
-        #         'teachers': _d['teachers']
-        #     }
-        #     for student in _d['students']:
-        #         student_detail = crud.getStudentDetail(student)
-        #         if 'Item' in student_detail:
-        #             student_data = {}
-        #             for k, v in student_detail:
-        #                 if k == 'id' or k == 'points':
-        #                     student_data[k] = v
-        #                 elif k in ['firstName', 'lastName']:
-        #                     student_data[k] = cipher.decrypt(v.encode()).decode()
-        #             response['students'].append(student_data)
+        if 'Item' in data:
+            _d = data['Item']
+            response = {
+                'id': _d['id'],
+                'level': _d['level'],
+                'students': [],
+                'missions': _d['missions'],
+                'rewards': _d['rewards'],
+                'activities': _d['activities'],
+                'items': _d['items'],
+                'teachers': _d['teachers']
+            }
+            for student in _d['students']:
+                student_detail = crud.getStudentDetail(student)
+                if 'Item' in student_detail:
+                    student_data = {}
+                    for k, v in student_detail['Item']:
+                        if k == 'id' or k == 'points':
+                            student_data[k] = v
+                        elif k in ['firstName', 'lastName']:
+                            student_data[k] = cipher.decrypt(v.encode()).decode()
+                    response['students'].append(student_data)
         
-        #     return JSONResponse(
-        #         status_code=status.HTTP_200_OK,
-        #         content=response,
-        #         d=_d
-        #     )
-        return data['Item']
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content=response,
+                d=_d
+            )
     except Exception as e:
         return str(e)
 
