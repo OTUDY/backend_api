@@ -145,7 +145,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 student_detail = crud.getStudentDetail(student)
                 if 'Item' in student_detail:
                     student_data = {}
-                    for k, v in student_detail['Item']:
+                    for k, v in student_detail['Item'].items():
                         if k == 'id' or k == 'points':
                             student_data[k] = v
                         elif k in ['firstName', 'lastName']:
