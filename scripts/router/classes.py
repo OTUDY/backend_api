@@ -186,7 +186,7 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
         'hashedPassword': cipher.encrypt(b'11110000').decode(),
         'firstName': cipher.encrypt(data.fname.encode()).decode(),
         'lastName': cipher.encrypt(data.surname.encode()).decode(),
-        'phone': cipher.encrypt('0').decode(),
+        'phone': cipher.encrypt('0'.encode()).decode(),
         'affiliation': '',
         'role': 'student',
         'points': 0,
