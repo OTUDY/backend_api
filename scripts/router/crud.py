@@ -103,9 +103,14 @@ class DynamoManager:
         
     def updateClassDetail(self, data): 
         try:
+            expression_attribute_names = {
+                '#reserved_keyword': 'level',
+                '#reserved_keyword2': 'description'  # Replace 'reserved_keyword' with your actual attribute name
+            }
             response = self.table.update_item(
                 Key={'id': data['id']},
-                UpdateExpression=f'set #level=:l, description=:d',
+                UpdateExpression=f'set #reserved_keyword=:l, #reserved_keyword2=:d',
+                ExpressionAttributeNames=expression_attribute_names,
                 ExpressionAttributeValues={
                     ':l': data['level'],
                     ':d': data['description']
