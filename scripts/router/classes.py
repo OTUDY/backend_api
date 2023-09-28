@@ -53,7 +53,7 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
         'level': data.level,
         'description': data.class_desc,
         'students': [],
-        'studentsNo': [],
+        'studentsNo': [{}],
         'missions': [],
         'rewards': [],
         'activities': [],
