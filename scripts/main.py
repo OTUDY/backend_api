@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#app.add_middleware(HTTPSRedirectMiddleware)
+app.add_middleware(HTTPSRedirectMiddleware)
 
 @app.get('/', status_code=status.HTTP_200_OK)
 async def index() -> Response:
