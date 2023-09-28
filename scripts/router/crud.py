@@ -216,7 +216,7 @@ class DynamoManager:
         
     def insertNonExistedStudent(self, data):
         self._user_table.put_item(Item=data)
-    def addStudent(self, student, class_id):
+    def addStudent(self, student, class_id, no):
         # Specify the value you want to insert into the list
 
         # Retrieve the item from the DynamoDB table
@@ -231,19 +231,26 @@ class DynamoManager:
             item = response['Item']
             
             # Modify the list in the item to insert a value
-            if 'students' in item:
-                item['students'].append(student)
+            if 'students' not in item:
+                item['students'] = []
+            if 'studentsNo' not in item:
+                item['studentsNo'] = []   
+
+            item['students'].append(student)
+            item['studentsNo'].append({student: no})
                 
-                # Update the item in the DynamoDB table with the modified data
+            # Update the item in the DynamoDB table with the modified data
+            try:
                 self._class_table.update_item(
                     Key={'id': class_id},
-                    UpdateExpression='SET students = :val',
+                    UpdateExpression='SET students = :val, studentsNo = :val2',
                     ExpressionAttributeValues={
-                        ':val': item['students']
+                        ':val': item['students'],
+                        ':val2': item['studentsNo']
                     }
                 )
                 return True
-            else:
+            except:
                 return False
         else:
             return False

@@ -152,6 +152,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                             student_data[k] = float(v)
                         elif k in ['firstName', 'lastName']:
                             student_data[k] = cipher.decrypt(v.encode()).decode()
+                    student_data['InClassNo'] = data['studentsNo'][student_data['id']]
                     response['students'].append(student_data)
         
             return JSONResponse(
@@ -194,7 +195,7 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
         }
         crud.insertNonExistedStudent(_d)
     
-    is_success = crud.addStudent(f'{data.fname}.{data.surname}', data.class_id)
+    is_success = crud.addStudent(f'{data.fname}.{data.surname}', data.class_id, data.inclass_id)
     if is_success:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
