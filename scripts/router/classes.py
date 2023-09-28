@@ -154,8 +154,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
         
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
-                content=response,
-                d=_d
+                content=response
             )
     except Exception as e:
         return str(e)
