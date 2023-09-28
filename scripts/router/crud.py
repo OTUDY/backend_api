@@ -232,9 +232,7 @@ class DynamoManager:
             
             # Modify the list in the item to insert a value
             if 'students' in item:
-                if 'L' not in item['students']:
-                    item['students']['L'] = []
-                item['students']['L'].append({'S': student})
+                item['students'].append(student)
                 
                 # Update the item in the DynamoDB table with the modified data
                 self._class_table.update_item(
