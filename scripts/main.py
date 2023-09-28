@@ -36,9 +36,9 @@ app.add_middleware(
 async def index() -> Response:
     return JSONResponse(status_code=status.HTTP_200_OK, content={'message': 'Accessing main route index.'})
 
-@app.route('/{_:path}')
-async def https_redirect(request: Request):
-    return RedirectResponse(request.url.replace(scheme='https'))
+@app.get('/test-pull')
+async def root() -> Response:
+    return "Successfully accessed to pulled version"
 
 # def catch_all(path: str, request: Request) -> HTMLResponse:
 #     return HTM('/', request)
