@@ -237,7 +237,7 @@ class DynamoManager:
                 item['studentsNo'] = {}
 
             item['students'].append(student)
-            item['studentsNo'][student].update({
+            item['studentsNo'].update({
                 student: no
             })
                 
