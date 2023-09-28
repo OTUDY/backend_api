@@ -53,6 +53,7 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
         'level': data.level,
         'description': data.class_desc,
         'students': [],
+        'studentsNo': [],
         'missions': [],
         'rewards': [],
         'activities': [],
@@ -139,7 +140,8 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 'rewards': _d['rewards'],
                 'activities': _d['activities'],
                 'items': _d['items'],
-                'teachers': _d['teachers']
+                'teachers': _d['teachers'],
+                'description': data['description']
             }
             for student in _d['students']:
                 student_detail = crud.getStudentDetail(student)
