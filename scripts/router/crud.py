@@ -234,10 +234,10 @@ class DynamoManager:
             if 'students' not in item:
                 item['students'] = []
             if 'studentsNo' not in item:
-                item['studentsNo'] = []   
+                item['studentsNo'] = [{}]   
 
             item['students'].append(student)
-            item['studentsNo'].append({student: no})
+            item['studentsNo'][0][student] = no
                 
             # Update the item in the DynamoDB table with the modified data
             try:

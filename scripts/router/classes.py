@@ -141,7 +141,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 'activities': _d['activities'],
                 'items': _d['items'],
                 'teachers': _d['teachers'],
-                'description': data['description']
+                'description': _d['description']
             }
             for student in _d['students']:
                 student_detail = crud.getStudentDetail(student)
@@ -154,7 +154,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                             student_data[k] = float(v)
                         elif k in ['firstName', 'lastName']:
                             student_data[k] = cipher.decrypt(v.encode()).decode()
-                    student_data['InClassNo'] = data['studentsNo'][student_data['id']]
+                    student_data['InClassNo'] = _d['studentsNo'][0][student_data['id']]
                     response['students'].append(student_data)
         
             return JSONResponse(
