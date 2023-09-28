@@ -146,8 +146,10 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 if 'Item' in student_detail:
                     student_data = {}
                     for k, v in student_detail['Item'].items():
-                        if k == 'id' or k == 'points':
+                        if k == 'id':
                             student_data[k] = v
+                        elif k == 'points':
+                            student_data[k] = float(v)
                         elif k in ['firstName', 'lastName']:
                             student_data[k] = cipher.decrypt(v.encode()).decode()
                     response['students'].append(student_data)
