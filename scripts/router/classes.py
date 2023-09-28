@@ -76,7 +76,7 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
 @router.put('/update_class_detail', tags=['class'])
 def update_class_detail(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
     try: 
-        data = {
+        _data = {   
             'id': data.class_name,
             'level': data.level,
             'description': data.class_desc
@@ -86,7 +86,7 @@ def update_class_detail(current_user: any = Depends(get_current_user), data: Cla
             status_code=status.HTTP_201_CREATED,
             content={
                 'message': 'successfully updated class.',
-                'class': data.__dict__
+                'class': _data
             }
         )
     except Exception as e:
