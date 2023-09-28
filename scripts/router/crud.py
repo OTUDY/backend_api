@@ -195,8 +195,8 @@ class DynamoManager:
             # Modify the list in the item to remove a value
             if 'students' in item:
                 value_to_remove = id
-                if value_to_remove in item['students']['L']:
-                    item['students']['L'].remove({'S': value_to_remove})
+                if value_to_remove in item['students']:
+                    item['students'].remove(value_to_remove)
                     
                 # Update the item in the DynamoDB table with the modified data
                 self.table.update_item(
