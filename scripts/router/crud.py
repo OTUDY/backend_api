@@ -1,3 +1,4 @@
+import random
 import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
@@ -25,6 +26,9 @@ class DynamoManager:
             if response.get('Item') is not None:
                 response_data = response['Item']
         return response_data
+    
+    def getCurrentUserDetail(self, id):
+        return self._user_table.get_item(Key={'id': id}).get('Item')
     
     def insert(self, items: list) -> any:
         returned_data = {
@@ -253,6 +257,186 @@ class DynamoManager:
                 )
                 return True
             except:
+                return False
+        else:
+            return False
+        
+    def createMission(self, class_id, name, points, desc, expired_date, tags, amt):
+        alphabets = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        class_response = self._class_table.get_item(Key={'id': class_id})
+        if 'Item' in class_response:
+            data = class_response['Item']
+            if 'missions' in data:
+                data['missions'].append({
+                    'id': ''.join(random.choice(alphabets) for i in range(5)),
+                    'name': name,
+                    'receivedPoints': points,
+                    'description': desc,
+                    'expiredDate': expired_date,
+                    'tags': tags,
+                    'slotsAmount': amt,
+                    'onGoingStatus': []
+                })
+            else :
+                data['missions'] = []
+
+            self._class_table.update_item(
+                Key={'id': class_id},
+                UpdateExpression='SET missions = :val',
+                ExpressionAttributeValues={
+                    ':val': data['missions']
+                }
+            )
+            return True
+        else:
+            return False
+        
+    def deleteMission(self, class_id, id):
+        response = self._class_table.get_item(
+            Key={'id': class_id}
+        )
+        if 'Item' in response:
+            item = response['Item']
+            if 'missions' not in item:
+                return False
+            else:
+                index = None
+                for j in range(len(item['missions'])):
+                    if item['missions'][j]['id'] == id:
+                        index = j
+                        break
+                if index is None:
+                    return False
+                else :
+                    try:
+                        item['missions'].pop(index)
+                        self._class_table.update_item(
+                            Key={'id': class_id},
+                            UpdateExpression='SET missions = :val',
+                            ExpressionAttributeValues={
+                                ':val': item['missions']
+                            }
+                        )
+                        return True
+                    except:
+                        return False
+    def updateMissionsDetail(self, class_id, id, name, points, desc, expired_date, tags, amt):
+        response = self._class_table.get_item(
+            Key={
+                'id': class_id
+            }
+        )
+        if 'Item' in response:
+            item = response['Item']
+            if 'missions' in item:
+                index = None
+                for idx in range(len(item['missions'])):
+                    if item['missions'][idx]['id'] == id:
+                        index = idx
+                        break
+                item['missions'][index]['name'] = name
+                item['missions'][index]['receivedPoints'] = points
+                item['missions'][index]['description'] = desc
+                item['missions'][index]['expiredDate'] = expired_date
+                item['missions'][index]['tags'] = tags
+                item['missions'][index]['slotsAmount'] = amt
+
+                try:
+                    self._class_table.update_item(
+                        Key={
+                            "id": class_id
+                        },
+                        UpdateExpression='SET missions = :val',
+                        ExpressionAttributeValues = {
+                            ':val': item['missions']
+                        }
+                    )
+                    return True
+                except:
+                    return False
+            else:
+                return False
+        else:
+            return False
+        
+    def assignMission(self, class_id, mission_id, student_id):
+        response = self._class_table.get_item(
+            Key={
+                'id': class_id
+            }
+        )
+        if 'Item' in response:
+            item = response['Item']
+            if 'missions' in item:
+                index = None
+                for idx in item['missions']:
+                    if item['missions'][idx]['id'] == mission_id:
+                        index = idx
+                if 'onGoingStatus' not in item['missions'][index]:
+                    item['missions']['onGoingStatus'] = []
+                else:
+                    item['missions']['onGoingStatus'].append({
+                        'studentId': student_id,
+                        'startedDate': str(datetime.now()),
+                        'status': 'Doing'
+                    })
+                try: 
+                    self._class_table.update_item(
+                        Key={'id': class_id},
+                        UpdateExpression='SET missions = :val',
+                        ExpressionAttributeValues = {
+                            ':val': item['missions']
+                        }
+                    )
+                    return True
+                except:
+                    return False
+            else:
+                return False
+            
+    def editStudentData(self, original_id, firstname, lastname, inclass_no, class_id):
+        response = self._user_table.get_item(
+            Key={'id': original_id}
+        )
+        if 'Item' in response:
+            item = response['item']
+            self._user_table.delete_item(
+                Key={
+                    'id': original_id
+                }
+            )
+            item['id'] = f'{firstname}.{lastname}'
+            self._user_table.insert_item(
+                Item=item
+            )
+            response_class = self._class_table.get_item(Key={
+                'id': class_id
+            })
+            if 'Item' in response_class:
+                class_item = response_class['Item']
+                for idx, x in enumerate(class_item['students']):
+                    if x == original_id:
+                        class_item['students'][idx] = f'{firstname}.{lastname}'
+                        break
+                if 'onGoingStatus' in class_item['missions']:
+                    for idx, x in enumerate(class_item['onGoingStatus']):
+                        if x['studentId'] == original_id:
+                            class_item['missions']['onGoingStatus'][idx]['studentId'] = f'{firstname}.{lastname}'
+                try:
+                    self._class_table.update_item(
+                        Key={
+                            'id': class_id
+                        },
+                        UpdateExpression='SET students = :val1, missions = :val2',
+                        ExpressionAttributeValues = {
+                            ':val1': class_item['students'],
+                            ':val2': class_item['missions']
+                        }
+                    )
+                    return True
+                except:
+                    return False
+            else:
                 return False
         else:
             return False

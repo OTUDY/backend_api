@@ -122,29 +122,25 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -> Response:
     cipher = Fernet(SECRET.encode())
     try:
-        response = crud.get(id=current_user)
+        response = crud.getCurrentUserDetail(id=current_user)
         data = response
         for k, v in data.items():
             if k not in ['id', 'hashedPassword', 'affiliation', 'role', 'points', 'netPoints']:
                 data[k] = cipher.decrypt(v.encode()).decode()
+        if 'points' in data and 'netPoints' in data:
+            data['points'] = int(data['points'])
+            data['netPoints'] = int(data['netPoints'])
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content=data
         )
     except Exception as e:
         return str(e)
-# ------------------
+# ---------------
 
 # ------ Edit ------
 @router.put("/edit_user_detail", tags=['user'])
 def edit_detail(current_user: any = Depends(get_current_user), edit_form: RegisterForm = None) -> Response:
-    if current_user != edit_form.email:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={
-                'message': 'Unauthorized.'
-            }
-        )
     cipher = Fernet(SECRET.encode())
     try:
         crud.updateUserDetail({
@@ -180,13 +176,24 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
     if response is not None:
         to_send_back = []
         for _c in response:
-            to_send_back.append(crud.getClassDetail(_c)['Item'])
+            class_detailed = crud.getClassDetail(_c)['Item']
+            data = {}
+            data['id'] = class_detailed['id']
+            data['level'] = class_detailed['level']
+            data['teachers'] = class_detailed['teachers']
+            data['description'] = class_detailed['description']
+            data['totalStudents'] = len(class_detailed['students'])
+
+            to_send_back.append(data)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             'classes': to_send_back
         }
     )
+
+# @router.put("/student/edit_student_detail", tags=['student'])
+# async def edit_student_detail(current_user: UserKey = Depends(get_current_user), )
     
 
 

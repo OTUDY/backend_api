@@ -2,7 +2,7 @@ from .crud import DynamoManager
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
-from .body.classes import ClassCreationForm
+from .body.classes import ClassCreationForm, EditStudentForm
 from .body.user import AddStudentObject
 import jwt
 import os
@@ -156,7 +156,13 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                             student_data[k] = cipher.decrypt(v.encode()).decode()
                     student_data['InClassNo'] = int(_d['studentsNo'][student_data['id']])
                     response['students'].append(student_data)
-        
+
+            if len(_d['missions']) > 0:
+                for idx, _ in enumerate(_d['missions']):
+                    _d['missions'][idx]['receivedPoints'] = int(_d['missions'][idx]['receivedPoints'])
+                    _d['missions'][idx]['slotsAmount'] = int(_d['missions'][idx]['slotsAmount'])
+
+                response['missions'] = _d['missions']
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content=response
@@ -213,3 +219,14 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
             }
         )
 
+@router.put('/edit_student_detail', tags=['student'])
+async def edit_student_detail(current_user = Depends(get_current_user), data: EditStudentForm = None) -> Response:
+    if crud.editStudentData(data.original_id, data.firstname, data.lastname, data.inclass_no, data.class_id):
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': 'successfully editted the data of the student.'
+            }
+        )
+    else:
+        return "Unable to proceed"
