@@ -176,10 +176,15 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
                 'message': 'Only teacher can proceed this route.'
             }
         )
+    response = crud.getAssignedClasses(current_user)
+    if response is not None:
+        to_send_back = []
+        for _c in response:
+            to_send_back.append(crud.getClassDetail(_c)['Item'])
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            'classes': crud.getAssignedClasses(current_user)
+            'classes': to_send_back
         }
     )
     
