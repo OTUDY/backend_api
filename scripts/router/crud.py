@@ -395,42 +395,119 @@ class DynamoManager:
                 return False
             
     def editStudentData(self, original_id, firstname, lastname, inclass_no, class_id):
-        response = self._user_table.get_item(
-            Key={'id': original_id}
+        if original_id != f'{firstname}.{lastname}':
+            print('Current key and Original are not matched.')
+            response = self._user_table.get_item(
+                Key={'id': original_id}
+            )
+            if 'Item' in response:
+                item = response['Item']
+                self._user_table.delete_item(
+                    Key={
+                        'id': original_id
+                    }
+                )
+                item['id'] = f'{firstname}.{lastname}'
+                self._user_table.put_item(
+                    Item=item
+                )
+                response_class = self._class_table.get_item(Key={
+                    'id': class_id
+                })
+        response_class = self._class_table.get_item(
+            Key={
+                'id': class_id
+            }
+        )
+        if 'Item' in response_class:
+            class_item = response_class['Item']
+            for idx, x in enumerate(class_item['students']):
+                if x == original_id:
+                    class_item['students'][idx] = f'{firstname}.{lastname}'
+                    break
+            class_item['studentsNo'].pop(original_id)
+            new_id = f'{firstname}.{lastname}'
+            class_item['studentsNo'][new_id] = inclass_no
+            if 'onGoingStatus' in class_item['missions']:
+                for idx, x in enumerate(class_item['onGoingStatus']):
+                    if x['studentId'] == original_id:
+                        class_item['missions']['onGoingStatus'][idx]['studentId'] = f'{firstname}.{lastname}'
+            try:
+                self._class_table.update_item(
+                    Key={
+                        'id': class_id
+                    },
+                    UpdateExpression='SET students = :val1, missions = :val2, studentsNo = :val3',
+                    ExpressionAttributeValues = {
+                        ':val1': class_item['students'],
+                        ':val2': class_item['missions'],
+                        ':val3': class_item['studentsNo']
+                    }
+                )
+                return True
+            except:
+                return False
+        else:
+            return False
+        
+    def createReward(self, class_id, name, desc, spent_points, expired_date, amt):
+        alphabets = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        response = self._class_table.get_item(
+            Key={
+                'id': class_id
+            }
         )
         if 'Item' in response:
-            item = response['item']
-            self._user_table.delete_item(
-                Key={
-                    'id': original_id
-                }
-            )
-            item['id'] = f'{firstname}.{lastname}'
-            self._user_table.insert_item(
-                Item=item
-            )
-            response_class = self._class_table.get_item(Key={
+            item = response['Item']
+            if 'rewards' not in item:
+                item['rewards'] = []
+            reward_data = {
+                'id': ''.join(random.choice(alphabets) for i in range(5)),
+                'name': name,
+                'description': desc,
+                'spentPoints': spent_points,
+                'expiredDate': expired_date,
+                'slotsAmount': amt,
+                'onGoingRedemption': []
+            }
+            item['rewards'].append(reward_data)
+
+            try:
+                self._class_table.update_item(
+                    Key={
+                        'id': class_id
+                    },
+                    UpdateExpression='SET rewards = :val',
+                    ExpressionAttributeValues={
+                        ':val': item['rewards']
+                    }
+                )
+                return True
+            except:
+                return False
+        return False
+            
+    def deleteReward(self, class_id, id):
+        response = self._class_table.get_item(
+            Key={
                 'id': class_id
-            })
-            if 'Item' in response_class:
-                class_item = response_class['Item']
-                for idx, x in enumerate(class_item['students']):
-                    if x == original_id:
-                        class_item['students'][idx] = f'{firstname}.{lastname}'
+            }
+        )
+        if 'Item' in response:
+            item = response['Item']
+            if 'rewards' in item:
+                index = None
+                for idx, reward in enumerate(item['rewards']):
+                    if reward['id'] == id:
+                        index = idx
                         break
-                if 'onGoingStatus' in class_item['missions']:
-                    for idx, x in enumerate(class_item['onGoingStatus']):
-                        if x['studentId'] == original_id:
-                            class_item['missions']['onGoingStatus'][idx]['studentId'] = f'{firstname}.{lastname}'
+                item['rewards'].pop(index)
                 try:
                     self._class_table.update_item(
-                        Key={
-                            'id': class_id
-                        },
-                        UpdateExpression='SET students = :val1, missions = :val2',
-                        ExpressionAttributeValues = {
-                            ':val1': class_item['students'],
-                            ':val2': class_item['missions']
+                        Key={'id': class_id},
+                        UpdateExpression='SET rewards = :val',
+                        ExpressionAttributeValues={
+                            ':val': item['rewards']
                         }
                     )
                     return True
@@ -440,3 +517,41 @@ class DynamoManager:
                 return False
         else:
             return False
+            
+    def updateRewardDetail(self, class_id, id, name, desc, spent_points, expired_date, amt):
+        response = self._class_table.get_item(
+            Key={
+                'id': class_id
+            }
+        )
+        if 'Item' in response:
+            item = response['Item']
+            if 'rewards' in item:
+                index = None
+                for idx, reward in enumerate(item['rewards']):
+                    if reward['id'] == id:
+                        index = idx
+                        break
+                item['rewards'][index]['name'] = name
+                item['rewards'][index]['description'] = desc
+                item['rewards'][index]['spentPoints'] = spent_points
+                item['rewards'][index]['expiredDate'] = expired_date
+                item['rewards'][index]['slotsAmount'] = amt
+                try:
+                    self._class_table.update_item(
+                        Key={
+                            'id': class_id
+                        },
+                        UpdateExpression='SET rewards = :val',
+                        ExpressionAttributeValues={
+                            ':val': item['rewards']
+                        }
+                    )
+                    return True
+                except:
+                    return False
+            else:
+                return False     
+        else:
+            return False
+

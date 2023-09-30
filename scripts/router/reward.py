@@ -1,139 +1,75 @@
-# from fastapi import APIRouter, Depends, HTTPException, Response, status
-# from fastapi.responses import JSONResponse
-# from fastapi.security import OAuth2PasswordBearer
-# from .body.reward import CreateReward
-# from .crud import SQLiteManager
-# import jwt
-# from datetime import datetime
-# import os
-# import pyodbc
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordBearer
+from .body.reward import CreateReward, EditRewardForm
+from .crud import DynamoManager
+import jwt
+from datetime import datetime
+import os
 
-# router = APIRouter(prefix='/reward')
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
-# SECRET_KEY = os.environ.get('key')
-# ALGORITHM = 'HS256'
-# driver = pyodbc.drivers()
-# if driver:
-#     print(driver)
-#     driver = driver[-1]
-# connection_string = '''Driver={%s};
-#                        Server=tcp:%s,%d;
-#                        Database=%s;
-#                        Uid=%s;
-#                        Pwd=%s;
-#                        Encrypt=yes;
-#                        TrustServerCertificate=no;Connection Timeout=300;
-#                     '''%(driver,
-#                          os.environ.get('AZURE_SQL_SERVER'),
-#                          int(os.environ.get('AZURE_SQL_PORT')), 
-#                          os.environ.get('AZURE_SQL_DATABASE'), 
-#                          os.environ.get('AZURE_SQL_USER'), 
-#                          os.environ.get('AZURE_SQL_PASSWORD'))
-# conn = pyodbc.connect(connection_string)
-# cursor = conn.cursor()
+router = APIRouter(prefix='/reward')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
+SECRET_KEY = os.environ.get('key')
+ALGORITHM = 'HS256'
+crud = DynamoManager('Classes')
 
-# async def get_current_user(token: str = Depends(oauth2_scheme)):
-#     credentials_exception = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED,
-#         detail="Could not validate credentials",
-#         headers={"WWW-Authenticate": "Bearer"},
-#     )
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         username: str = payload.get("sub")
-#         if username is None:
-#             raise credentials_exception
-#         return username
-#     except jwt.PyJWTError:
-#         raise credentials_exception
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        return username
+    except jwt.PyJWTError:
+        raise credentials_exception
 
-# @router.get('/')
-# def reward_root() -> Response:
-#     return JSONResponse(
-#         status_code=status.HTTP_200_OK,
-#         content={
-#             'message': 'accessing reward index root.'
-#         }
-#     )
+@router.get('/')
+def reward_root() -> Response:
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            'message': 'accessing reward index root.'
+        }
+    )
 
-# @router.post('/create_reward', tags=['rewards'])
-# def create_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
-#     query: str = f''' INSERT INTO dbo.Rewards (reward_name, reward_desc, reward_spent_points, reward_active_status, class_id, reward_amount)
-#                       VALUES ('{data.reward_name}', '{data.reward_desc}', {data.reward_spent_points}, {int(data.reward_active_status)}, '{data.class_id}', {data.amount}) '''
-#     cursor.execute(query)
-#     conn.commit()
-#     return JSONResponse(
-#         status_code=status.HTTP_201_CREATED,
-#         content={
-#             'message': 'successfully created a reward.',
-#             'reward': data.__dict__
-#         }
-#     )
+@router.post('/create_reward', tags=['rewards'])
+def create_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
+    if crud.createReward(data.class_id, data.reward_name, data.reward_desc, data.reward_spent_points, data.expired_date, data.amount):
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                'message': 'successfully created a reward.',
+                'reward': data.__dict__
+            }
+        )
+    return "Unable to proceed"
 
-# @router.get('/get_reward_detail/', tags=['rewards'])
-# def get_reward_detail(reward_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
-#     result = cursor.execute(f"SELECT * FROM dbo.Rewards WHERE reward_name = '{reward_name}' AND class_id = '{_class}'").fetchone()
-#     if not result:
-#         return JSONResponse(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             content={
-#                 'message': 'reward not found.'
-#             }
-#         )
-#     response = {
-#         'reward_name': result[0],
-#         'reward_desc': result[1],
-#         'reward_pic': result[2],
-#         'reward_spent_points': result[3],
-#         'reward_active_status': result[4],
-#         'class_id': result[5],
-#         'reward_amount': result[6]
-#     }
-#     return JSONResponse(
-#         status_code=status.HTTP_200_OK,
-#         content={
-#             'reward': response
-#         }
-#     )
+@router.put('/update_reward_detail', tags=['rewards'])
+def update_reward(current_user: any = Depends(get_current_user), data: EditRewardForm = None) -> Response:
+    if crud.updateRewardDetail(data.class_id, data.reward_id, data.reward_name, data.reward_desc, data.reward_spent_points, data.expired_date, data.amount): 
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                'message': 'Successfully updated the reward.',
+                'reward': data.__dict__
+            }
+        )
+    return 'Unable to proceed'
 
-# @router.put('/update_reward_detail', tags=['rewards'])
-# def update_reward(current_user: any = Depends(get_current_user), data: CreateReward = None) -> Response:
-#     cursor.execute(f'''UPDATE dbo.Rewards SET reward_name = '{data.reward_name}', 
-#                                    reward_desc = '{data.reward_desc}', 
-#                                    reward_pic = '{data.reward_pic}', 
-#                                    reward_spent_points = {data.reward_spent_points}, 
-#                                    reward_active_status = {int(data.reward_active_status)},
-#                                    class_id = '{data.class_id}',
-#                                    reward_amount = {data.amount}
-#                   WHERE reward_name = '{data.reward_name}' AND class_id = '{data.class_id}' '''
-#     )
-#     conn.commit()
-#     return JSONResponse(
-#         status_code=status.HTTP_201_CREATED,
-#         content={
-#             'message': 'Successfully updated the reward.',
-#             'reward': data.__dict__
-#         }
-#     )
-
-# @router.delete('/reward_name', tags=['rewards'])
-# async def delete_reward(reward_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
-#     try: 
-#         cursor.execute(f"DELETE FROM dbo.Rewards WHERE reward_name = '{reward_name}' AND class_id = '{_class}'")
-#         conn.commit()
-#         return JSONResponse(
-#             status_code=status.HTTP_200_OK,
-#             content={
-#                 'message': f'successfully deleted reward {reward_name}'
-#             }
-#         )
-#     except:
-#         return JSONResponse(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             content={
-#                 'message': 'reward is not found.'
-#             }
-#         )
+@router.delete('/delete_reward', tags=['rewards'])
+async def delete_reward(reward_name: str, _class: str, current_user: any = Depends(get_current_user)) -> Response:
+    if crud.deleteReward(_class, reward_name):
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': f'successfully deleted reward: {reward_name}'
+            }
+        )
 
 # @router.get('/redeem', tags=['rewards', 'redemption'])
 # def redeem(user_email: str, reward_name: str, current_user: any = Depends(get_current_user)) -> Response:

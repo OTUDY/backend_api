@@ -161,8 +161,12 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 for idx, _ in enumerate(_d['missions']):
                     _d['missions'][idx]['receivedPoints'] = int(_d['missions'][idx]['receivedPoints'])
                     _d['missions'][idx]['slotsAmount'] = int(_d['missions'][idx]['slotsAmount'])
-
-                response['missions'] = _d['missions']
+                    response['missions'] = _d['missions']
+            if len(_d['rewards']) > 0:
+                for idx, _ in enumerate(_d['rewards']):
+                    _d['rewards'][idx]['spentPoints'] = int(_d['rewards'][idx]['spentPoints'])
+                    _d['rewards'][idx]['slotsAmount'] = int(_d['rewards'][idx]['slotsAmount'])
+                    response['rewards'] = _d['rewards']
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content=response
@@ -189,7 +193,9 @@ async def remove_students(students: List[str], _class: str ,current_user: any = 
 async def add_student(current_user: any = Depends(get_current_user), data: AddStudentObject = None) -> Response:
     cipher = Fernet(SECRET_KEY.encode())
     response = crud.getStudentDetail(f'{data.fname}.{data.surname}')
+    added_success = True
     if 'Item' not in response:
+        print('Student is not existed, creating a new one.')
         _d = {
         'id': f'{data.fname}.{data.surname}',
         'hashedPassword': cipher.encrypt(b'11110000').decode(),
@@ -201,26 +207,32 @@ async def add_student(current_user: any = Depends(get_current_user), data: AddSt
         'points': 0,
         'netPoints': 0
         }
-        crud.insertNonExistedStudent(_d)
-    
-    is_success = crud.addStudent(f'{data.fname}.{data.surname}', data.class_id, data.inclass_id)
-    if is_success:
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                'message': 'successfully added student'
-            }
-        )
-    else :
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                'message': 'Unabled to add student'
-            }
-        )
+        try:
+            crud.insertNonExistedStudent(_d)
+        except:
+            added_success = False
+    if added_success:
+        is_success = crud.addStudent(f'{data.fname}.{data.surname}', data.class_id, data.inclass_id)
+        if is_success:
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={
+                    'message': 'successfully added student'
+                }
+            )
+        else :
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    'message': 'Unabled to add student'
+                }
+            )
+    else:
+        return "Unable to proceed"
 
 @router.put('/edit_student_detail', tags=['student'])
 async def edit_student_detail(current_user = Depends(get_current_user), data: EditStudentForm = None) -> Response:
+    print(data.original_id)
     if crud.editStudentData(data.original_id, data.firstname, data.lastname, data.inclass_no, data.class_id):
         return JSONResponse(
             status_code=status.HTTP_200_OK,
