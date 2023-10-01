@@ -92,14 +92,14 @@ async def update_mission(current_user: any = Depends(get_current_user), data: Cr
     else:
         return "Unable to proceed, please try again later or check your parameters."
 
-@router.get('/assign_mission', tags=['mission', 'student'])
-async def assign_mission_to_student(_class: str, student_id: str, mission_id: str, inclass_no: int, current_user = Depends(get_current_user)) -> Response:
-    is_sucess = crud.assignMission(_class, mission_id, student_id)
+@router.get('/change_mission_status', tags=['mission', 'student'])
+async def change_mission_status(_class: str, student_id: str, mission_id: str, _status: str, current_user = Depends(get_current_user)) -> Response:
+    is_sucess = crud.changeMissionStatus(_class, mission_id, student_id, _status)
     if is_sucess:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
-                'message': f'Assigned mission {mission_id} to {student_id}'
+                'message': f'Change status of {mission_id} of {student_id}'
             }
         )
     else:

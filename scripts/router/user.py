@@ -179,6 +179,7 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
             class_detailed = crud.getClassDetail(_c)['Item']
             data = {}
             data['id'] = class_detailed['id']
+            data['name'] = class_detailed['name']
             data['level'] = class_detailed['level']
             data['teachers'] = class_detailed['teachers']
             data['description'] = class_detailed['description']

@@ -19,6 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/user/login")
 SECRET_KEY = os.environ.get('key')
 ALGORITHM = 'HS256'
 crud = DynamoManager('Classes')
+alphabets = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -48,8 +49,10 @@ def class_root() -> Response:
 
 @router.post('/create_class', tags=['class'])
 def create_class(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
+    alphabets = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
     _data = [{
-        'id': data.class_name,
+        'id': ''.join(random.choice(alphabets) for i in range(8)),
+        'name': data.class_name,
         'level': data.level,
         'description': data.class_desc,
         'students': [],
@@ -134,8 +137,9 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
             _d = data['Item']
             response = {
                 'id': _d['id'],
+                'name': _d['name'],
                 'level': _d['level'],
-                'students': [],
+                'students': _d['students'],
                 'missions': _d['missions'],
                 'rewards': _d['rewards'],
                 'activities': _d['activities'],
@@ -143,20 +147,16 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 'teachers': _d['teachers'],
                 'description': _d['description']
             }
-            for student in _d['students']:
-                student_detail = crud.getStudentDetail(student)
-                if 'Item' in student_detail:
-                    student_data = {}
-                    for k, v in student_detail['Item'].items():
-                        if k == 'id':
-                            student_data[k] = v
-                        elif k == 'points':
-                            student_data[k] = float(v)
-                        elif k in ['firstName', 'lastName']:
-                            student_data[k] = cipher.decrypt(v.encode()).decode()
-                    student_data['InClassNo'] = int(_d['studentsNo'][student_data['id']])
-                    response['students'].append(student_data)
-
+            for idx in range(len(response['missions'])):
+                for x in range(len(response['missions'][idx]['onGoingStatus'])):
+                    response['missions'][idx]['onGoingStatus'][x]['inClassId'] = int(response['missions'][idx]['onGoingStatus'][x]['inClassId'])
+                    response['missions'][idx]['onGoingStatus'][x]['firstName'] = cipher.decrypt(response['missions'][idx]['onGoingStatus'][x]['firstName'].encode()).decode()
+                    response['missions'][idx]['onGoingStatus'][x]['lastName'] = cipher.decrypt(response['missions'][idx]['onGoingStatus'][x]['lastName'].encode()).decode()
+            for idx in range(len(response['students'])):
+                response['students'][idx]['inClassId'] = int(response['students'][idx]['inClassId'])
+                response['students'][idx]['points'] = int(response['students'][idx]['points'])
+                response['students'][idx]['firstName'] = cipher.decrypt(response['students'][idx]['firstName'].encode()).decode()
+                response['students'][idx]['lastName'] = cipher.decrypt(response['students'][idx]['lastName'].encode()).decode()
             if len(_d['missions']) > 0:
                 for idx, _ in enumerate(_d['missions']):
                     _d['missions'][idx]['receivedPoints'] = int(_d['missions'][idx]['receivedPoints'])
@@ -167,6 +167,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                     _d['rewards'][idx]['spentPoints'] = int(_d['rewards'][idx]['spentPoints'])
                     _d['rewards'][idx]['slotsAmount'] = int(_d['rewards'][idx]['slotsAmount'])
                     response['rewards'] = _d['rewards']
+            #print(response)
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
                 content=response
@@ -192,48 +193,32 @@ async def remove_students(students: List[str], _class: str ,current_user: any = 
 @router.post('/add_student', tags=['class', 'student'])
 async def add_student(current_user: any = Depends(get_current_user), data: AddStudentObject = None) -> Response:
     cipher = Fernet(SECRET_KEY.encode())
-    response = crud.getStudentDetail(f'{data.fname}.{data.surname}')
-    added_success = True
-    if 'Item' not in response:
-        print('Student is not existed, creating a new one.')
-        _d = {
-        'id': f'{data.fname}.{data.surname}',
-        'hashedPassword': cipher.encrypt(b'11110000').decode(),
-        'firstName': cipher.encrypt(data.fname.encode()).decode(),
-        'lastName': cipher.encrypt(data.surname.encode()).decode(),
-        'phone': cipher.encrypt('0'.encode()).decode(),
-        'affiliation': '',
-        'role': 'student',
-        'points': 0,
-        'netPoints': 0
-        }
-        try:
-            crud.insertNonExistedStudent(_d)
-        except:
-            added_success = False
-    if added_success:
-        is_success = crud.addStudent(f'{data.fname}.{data.surname}', data.class_id, data.inclass_id)
-        if is_success:
-            return JSONResponse(
-                status_code=status.HTTP_200_OK,
-                content={
+    is_success = crud.addStudent(''.join(random.choice(alphabets) for _ in range(6)),
+                                 cipher.encrypt(data.fname.encode()).decode(),
+                                 cipher.encrypt(data.surname.encode()).decode(),
+                                 data.class_id,
+                                 data.inclass_id)
+    if is_success:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
                     'message': 'successfully added student'
-                }
-            )
-        else :
-            return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={
+            }
+        )
+    else :
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
                     'message': 'Unabled to add student'
                 }
             )
-    else:
-        return "Unable to proceed"
 
 @router.put('/edit_student_detail', tags=['student'])
 async def edit_student_detail(current_user = Depends(get_current_user), data: EditStudentForm = None) -> Response:
-    print(data.original_id)
-    if crud.editStudentData(data.original_id, data.firstname, data.lastname, data.inclass_no, data.class_id):
+    cipher = Fernet(SECRET_KEY.encode())
+    firstname = cipher.encrypt(data.firstname.encode()).decode()
+    lastname = cipher.encrypt(data.lastname.encode()).decode()
+    if crud.editStudentData(data.original_id, firstname, firstname, data.inclass_no, data.class_id):
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={

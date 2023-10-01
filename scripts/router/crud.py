@@ -3,6 +3,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
 
+
 class DynamoManager:
     def __init__(self, table: str) -> None:
         self.db = boto3.resource('dynamodb')
@@ -26,10 +27,10 @@ class DynamoManager:
             if response.get('Item') is not None:
                 response_data = response['Item']
         return response_data
-    
+
     def getCurrentUserDetail(self, id):
         return self._user_table.get_item(Key={'id': id}).get('Item')
-    
+
     def insert(self, items: list) -> any:
         returned_data = {
             'missingStudents': [],
@@ -57,7 +58,7 @@ class DynamoManager:
                 self.table.put_item(Item=item)
 
         return returned_data
-    
+
     def updateUserDetail(self, item) -> any:
         try:
             response = self.table.update_item(
@@ -81,7 +82,7 @@ class DynamoManager:
         pass
 
     def getRole(self, id: str):
-        try: 
+        try:
             response = self.table.get_item(Key={
                 'id': id
             })
@@ -90,7 +91,7 @@ class DynamoManager:
             return response['Item']['role']
         except Exception as e:
             return str(e)
-        
+
     def getAssignedClasses(self, id):
         try:
             result = []
@@ -104,12 +105,13 @@ class DynamoManager:
             return result
         except Exception as e:
             return str(e)
-        
-    def updateClassDetail(self, data): 
+
+    def updateClassDetail(self, data):
         try:
             expression_attribute_names = {
                 '#reserved_keyword': 'level',
-                '#reserved_keyword2': 'description'  # Replace 'reserved_keyword' with your actual attribute name
+                # Replace 'reserved_keyword' with your actual attribute name
+                '#reserved_keyword2': 'description'
             }
             response = self.table.update_item(
                 Key={'id': data['id']},
@@ -125,7 +127,7 @@ class DynamoManager:
             return str(e)
         else:
             return response['Attributes']
-        
+
     def assignMission(self, class_id, student_id, mission_id):
         # Retrieve the item from DynamoDB
         response = self.table.get_item(
@@ -139,24 +141,25 @@ class DynamoManager:
         if 'Item' in response:
             # Extract the item
             item = response['Item']
-            
+
             # Modify the 'missions' list by appending the new item to 'onGoingStatus'
-            new_status_item = {'studentId': {'S': student_id}, 'status': {'S': 'Doing'}, 'startedDate': {'S': str(datetime.now())}}
-            
+            new_status_item = {'studentId': {'S': student_id}, 'status': {
+                'S': 'Doing'}, 'startedDate': {'S': str(datetime.now())}}
+
             # Check if 'missions' key exists and is a list
             if 'missions' in item and 'L' in item['missions']:
                 missions_list = item['missions']['L']
-                
+
                 # Find the mission you want to update
                 for mission in missions_list:
                     if 'M' in mission and 'id' in mission['M'] and mission['M']['id']['S'] == mission_id:
                         # Check if 'onGoingStatus' key exists and is a list
                         if 'onGoingStatus' in mission['M'] and 'L' in mission['M']['onGoingStatus']:
                             onGoingStatus_list = mission['M']['onGoingStatus']['L']
-                            
+
                             # Append the new status item to the 'onGoingStatus' list
                             onGoingStatus_list.append({'M': new_status_item})
-                            
+
                             # Update the DynamoDB item with the modified 'missions' list
                             self.table.update_item(
                                 Key={
@@ -175,7 +178,7 @@ class DynamoManager:
         self.table.delete_item(Key={
             'id': id
         })
-                
+
     def getClassDetail(self, id):
         response = self._class_table.get_item(Key={
             'id': id
@@ -186,73 +189,25 @@ class DynamoManager:
         return self._user_table.get_item(Key={
             'id': id
         })
-    
+
     def removeStudent(self, id, class_id):
-        response = self.table.get_item(
-        Key={'id': class_id}
-    )
-
-        # Check if the item was found
-        if 'Item' in response:
-            item = response['Item']
-            
-            # Modify the list in the item to remove a value
-            if 'students' in item:
-                value_to_remove = id
-                if value_to_remove in item['students']:
-                    item['students'].remove(value_to_remove)
-                    
-                # Update the item in the DynamoDB table with the modified data
-                self.table.update_item(
-                    Key={
-                        'id': class_id
-                    },
-                    UpdateExpression='SET students = :val',
-                    ExpressionAttributeValues={
-                        ':val': item['students']
-                    }
-                )
-                return True
-            else:
-                return False
-        else:
-            return False
-        
-    def insertNonExistedStudent(self, data):
-        self._user_table.put_item(Item=data)
-    def addStudent(self, student, class_id, no):
-        # Specify the value you want to insert into the list
-
-        # Retrieve the item from the DynamoDB table
         response = self._class_table.get_item(
-            Key={
-                'id': class_id
-            }
+            Key={'id': class_id}
         )
-
-        # Check if the item was found
         if 'Item' in response:
             item = response['Item']
-            
-            # Modify the list in the item to insert a value
-            if 'students' not in item:
-                item['students'] = []
-            if 'studentsNo' not in item:
-                item['studentsNo'] = {}
-
-            item['students'].append(student)
-            item['studentsNo'].update({
-                student: no
-            })
-                
-            # Update the item in the DynamoDB table with the modified data
+            index = None
+            for x in range(len(item['students'])):
+                if item['students'][x]['id'] == id:
+                    index = x
+                    break
+            item['students'].pop(index)
             try:
                 self._class_table.update_item(
                     Key={'id': class_id},
-                    UpdateExpression='SET students = :val, studentsNo = :val2',
+                    UpdateExpression="SET students = :val",
                     ExpressionAttributeValues={
-                        ':val': item['students'],
-                        ':val2': item['studentsNo']
+                        ':val': item['students']
                     }
                 )
                 return True
@@ -260,13 +215,55 @@ class DynamoManager:
                 return False
         else:
             return False
-        
+    def insertNonExistedStudent(self, data):
+        self._user_table.put_item(Item=data)
+
+    def addStudent(self, id, fname, lname, class_id, no):
+        response = self._class_table.get_item(
+            Key={'id': class_id}
+        )
+        if 'Item' in response:
+            item = response['Item']
+            if 'students' not in item:
+                item['students'] = []
+            item['students'].append({
+                'id': id,
+                'firstName': fname,
+                'lastName': lname,
+                'points': 0,
+                'inClassId': no 
+            })
+            try:
+                self._class_table.update_item(
+                    Key={'id': class_id},
+                    UpdateExpression='SET students = :val',
+                    ExpressionAttributeValues={
+                        ':val': item['students']
+                    }
+                )
+                return True
+            except:
+                return False
+        else:
+            return True
+
     def createMission(self, class_id, name, points, desc, expired_date, tags, amt):
         alphabets = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         class_response = self._class_table.get_item(Key={'id': class_id})
         if 'Item' in class_response:
             data = class_response['Item']
             if 'missions' in data:
+                on_going_status = []
+                for j in data['students']:
+                    to_append_data = {
+                        'id': j['id'],
+                        'firstName': j['firstName'],
+                        'lastName': j['lastName'],
+                        'inClassId': j['inClassId'],
+                        'status': 'ยังไม่ได้รับมอบหมาย'
+                    }
+                    on_going_status.append(to_append_data)
+
                 data['missions'].append({
                     'id': ''.join(random.choice(alphabets) for i in range(5)),
                     'name': name,
@@ -275,9 +272,9 @@ class DynamoManager:
                     'expiredDate': expired_date,
                     'tags': tags,
                     'slotsAmount': amt,
-                    'onGoingStatus': []
+                    'onGoingStatus': on_going_status
                 })
-            else :
+            else:
                 data['missions'] = []
 
             self._class_table.update_item(
@@ -290,7 +287,7 @@ class DynamoManager:
             return True
         else:
             return False
-        
+
     def deleteMission(self, class_id, id):
         response = self._class_table.get_item(
             Key={'id': class_id}
@@ -307,7 +304,7 @@ class DynamoManager:
                         break
                 if index is None:
                     return False
-                else :
+                else:
                     try:
                         item['missions'].pop(index)
                         self._class_table.update_item(
@@ -320,6 +317,7 @@ class DynamoManager:
                         return True
                     except:
                         return False
+
     def updateMissionsDetail(self, class_id, id, name, points, desc, expired_date, tags, amt):
         response = self._class_table.get_item(
             Key={
@@ -347,7 +345,7 @@ class DynamoManager:
                             "id": class_id
                         },
                         UpdateExpression='SET missions = :val',
-                        ExpressionAttributeValues = {
+                        ExpressionAttributeValues={
                             ':val': item['missions']
                         }
                     )
@@ -358,8 +356,8 @@ class DynamoManager:
                 return False
         else:
             return False
-        
-    def assignMission(self, class_id, mission_id, student_id):
+
+    def changeMissionStatus(self, class_id, mission_id, student_id, status):
         response = self._class_table.get_item(
             Key={
                 'id': class_id
@@ -367,81 +365,18 @@ class DynamoManager:
         )
         if 'Item' in response:
             item = response['Item']
-            if 'missions' in item:
-                index = None
-                for idx in item['missions']:
-                    if item['missions'][idx]['id'] == mission_id:
-                        index = idx
-                if 'onGoingStatus' not in item['missions'][index]:
-                    item['missions']['onGoingStatus'] = []
-                else:
-                    item['missions']['onGoingStatus'].append({
-                        'studentId': student_id,
-                        'startedDate': str(datetime.now()),
-                        'status': 'Doing'
-                    })
-                try: 
-                    self._class_table.update_item(
-                        Key={'id': class_id},
-                        UpdateExpression='SET missions = :val',
-                        ExpressionAttributeValues = {
-                            ':val': item['missions']
-                        }
-                    )
-                    return True
-                except:
-                    return False
-            else:
-                return False
-            
-    def editStudentData(self, original_id, firstname, lastname, inclass_no, class_id):
-        if original_id != f'{firstname}.{lastname}':
-            print('Current key and Original are not matched.')
-            response = self._user_table.get_item(
-                Key={'id': original_id}
-            )
-            if 'Item' in response:
-                item = response['Item']
-                self._user_table.delete_item(
-                    Key={
-                        'id': original_id
-                    }
-                )
-                item['id'] = f'{firstname}.{lastname}'
-                self._user_table.put_item(
-                    Item=item
-                )
-                response_class = self._class_table.get_item(Key={
-                    'id': class_id
-                })
-        response_class = self._class_table.get_item(
-            Key={
-                'id': class_id
-            }
-        )
-        if 'Item' in response_class:
-            class_item = response_class['Item']
-            for idx, x in enumerate(class_item['students']):
-                if x == original_id:
-                    class_item['students'][idx] = f'{firstname}.{lastname}'
-                    break
-            class_item['studentsNo'].pop(original_id)
-            new_id = f'{firstname}.{lastname}'
-            class_item['studentsNo'][new_id] = inclass_no
-            if 'onGoingStatus' in class_item['missions']:
-                for idx, x in enumerate(class_item['onGoingStatus']):
-                    if x['studentId'] == original_id:
-                        class_item['missions']['onGoingStatus'][idx]['studentId'] = f'{firstname}.{lastname}'
+            index = None
+            for x in range(len(item['missions'])):
+                if item['missions'][x]['id'] == mission_id:
+                    for idx, j in enumerate(item['missions'][x]['onGoingStatus']):
+                        if j['id'] == student_id:
+                            item['missions'][x]['onGoingStatus'][idx]['status'] = status
             try:
                 self._class_table.update_item(
-                    Key={
-                        'id': class_id
-                    },
-                    UpdateExpression='SET students = :val1, missions = :val2, studentsNo = :val3',
-                    ExpressionAttributeValues = {
-                        ':val1': class_item['students'],
-                        ':val2': class_item['missions'],
-                        ':val3': class_item['studentsNo']
+                    Key={'id': class_id},
+                    UpdateExpression='SET missions = :val',
+                    ExpressionAttributeValues={
+                        ':val': item['missions']
                     }
                 )
                 return True
@@ -449,7 +384,35 @@ class DynamoManager:
                 return False
         else:
             return False
-        
+            
+    def editStudentData(self, id, firstname, lastname, inclass_no, class_id):
+        response = self._class_table.get_item(
+            Key={
+                'id': class_id
+            }
+        )
+        if 'Item' in response:
+            item = response['Item']
+            for idx in range(len(item['students'])):
+                if item['students'][idx]['id'] == id:
+                    item['students'][idx]['firstName'] = firstname
+                    item['students'][idx]['lastName'] = lastname
+                    item['students'][idx]['inClassId'] = inclass_no
+                    break
+            try:
+                self._class_table.update_item(
+                    Key={'id': class_id},
+                    UpdateExpression='SET students = :val',
+                    ExpressionAttributeValues = {
+                        ':val': item['students']
+                    }
+                )
+                return True
+            except:
+                return False
+        else:
+            return False
+
     def createReward(self, class_id, name, desc, spent_points, expired_date, amt):
         alphabets = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
         response = self._class_table.get_item(
@@ -486,7 +449,7 @@ class DynamoManager:
             except:
                 return False
         return False
-            
+
     def deleteReward(self, class_id, id):
         response = self._class_table.get_item(
             Key={
@@ -517,7 +480,7 @@ class DynamoManager:
                 return False
         else:
             return False
-            
+
     def updateRewardDetail(self, class_id, id, name, desc, spent_points, expired_date, amt):
         response = self._class_table.get_item(
             Key={
@@ -551,7 +514,6 @@ class DynamoManager:
                 except:
                     return False
             else:
-                return False     
+                return False
         else:
             return False
-
