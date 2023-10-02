@@ -238,14 +238,38 @@ class DynamoManager:
                 'firstName': fname,
                 'lastName': lname,
                 'points': 0,
+                'netPoints': 0,
                 'inClassId': no 
             })
+            if 'missions' in item:
+                for idx, vlaue in enumerate(item['missions']):
+                    item['missions'][idx]['onGoingStatus'].append({
+                        'id': id,
+                        'firstName': fname,
+                        'lastName': lname,
+                        'inClassId': no,
+                        'status': 'ยังไม่ได้รับมอบหมาย'
+                    }
+                )
+            if 'rewards' in item:
+                for idx, vlaue in enumerate(item['rewards']):
+                    item['rewards'][idx]['onGoingRedemption'].append({
+                        'id': id,
+                        'firstName': fname,
+                        'lastName': lname,
+                        'inClassId': no,
+                        'status': 'ยังไม่ได้ทำการแลก'
+                    }
+                )
             try:
                 self._class_table.update_item(
                     Key={'id': class_id},
-                    UpdateExpression='SET students = :val',
+                    UpdateExpression='SET students = :val, missions = :val2, rewards = :val3',
                     ExpressionAttributeValues={
-                        ':val': item['students']
+                        ':val': item['students'],
+                        ':val2': item['missions'],
+                        ':val3': item['rewards']
+
                     }
                 )
                 return True
@@ -372,18 +396,30 @@ class DynamoManager:
         )
         if 'Item' in response:
             item = response['Item']
-            index = None
+            received_points = None
             for x in range(len(item['missions'])):
                 if item['missions'][x]['id'] == mission_id:
+                    received_points = item['missions'][x]['receivedPoints']
+                    if status == 'เสร็จสิ้นภารกิจ':
+                        if item['missions'][x]['slotsAmount'] <= 0:
+                            return False
+                        item['missions'][x]['slotsAmount'] -= 1
                     for idx, j in enumerate(item['missions'][x]['onGoingStatus']):
                         if j['id'] == student_id:
                             item['missions'][x]['onGoingStatus'][idx]['status'] = status
+                            break
+            if status == 'เสร็จสิ้นภารกิจ':
+                for x in range(len(item['students'])):
+                    if item['students'][x]['id'] == student_id:
+                        item['students'][x]['points'] += received_points
+                        item['students'][x]['netPoints'] += received_points
             try:
                 self._class_table.update_item(
                     Key={'id': class_id},
-                    UpdateExpression='SET missions = :val',
+                    UpdateExpression='SET missions = :val, students = :val2',
                     ExpressionAttributeValues={
-                        ':val': item['missions']
+                        ':val': item['missions'],
+                        ':val2': item['students']
                     }
                 )
                 return True
@@ -431,6 +467,17 @@ class DynamoManager:
             item = response['Item']
             if 'rewards' not in item:
                 item['rewards'] = []
+            on_going_status = []
+            for j in item['students']:
+                to_append_data = {
+                        'id': j['id'],
+                        'firstName': j['firstName'],
+                        'lastName': j['lastName'],
+                        'inClassId': j['inClassId'],
+                        'status': 'ยังไม่ได้ทำการแลก'
+                    }
+            on_going_status.append(to_append_data)
+
             reward_data = {
                 'id': ''.join(random.choice(alphabets) for i in range(5)),
                 'name': name,
@@ -438,7 +485,7 @@ class DynamoManager:
                 'spentPoints': spent_points,
                 'expiredDate': expired_date,
                 'slotsAmount': amt,
-                'onGoingRedemption': []
+                'onGoingRedemption': on_going_status
             }
             item['rewards'].append(reward_data)
 
@@ -521,6 +568,42 @@ class DynamoManager:
                 except:
                     return False
             else:
+                return False
+        else:
+            return False
+        
+    def changeRedeemStatus(self, id, class_id, student_id, status):
+        response = self._class_table.get_item(
+            Key={'id': class_id}
+        )
+        if 'Item' in response:
+            item = response['Item']
+            spent_points = None
+            for idx, value in enumerate(item['rewards']):
+                if value['id'] == id:
+                    spent_points = value['spentPoints']
+                    slot_count = value['slotsAmount']
+                    if status == 'แลกเสร็จสิ้น':
+                        if slot_count <= 0:
+                            return False
+                        item['rewards'][idx]['slotsAmount'] -= 1
+                    for idx2, redeem in enumerate(item['rewards'][idx]['onGoingRedemption']):
+                        if redeem['id'] == student_id:
+                            item['rewards'][idx]['onGoingRedemption'][idx2]['status'] = status
+            for i in range(len(item['students'])):
+                if item['students'][i]['id'] == student_id:
+                    item['students'][i]['points'] -= spent_points
+            try:
+                self._class_table.update_item(
+                    Key={'id': class_id},
+                    UpdateExpression='SET rewards = :val, students = :val2',
+                    ExpressionAttributeValues={
+                        ':val': item['rewards'],
+                        ':val2': item['students']
+                    }
+                )
+                return True
+            except:
                 return False
         else:
             return False

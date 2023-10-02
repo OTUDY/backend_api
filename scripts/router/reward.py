@@ -70,6 +70,23 @@ async def delete_reward(reward_name: str, _class: str, current_user: any = Depen
                 'message': f'successfully deleted reward: {reward_name}'
             }
         )
+    
+@router.get('/change_redeem_status', tags=['rewards'])
+async def change_redeem_status(reward_id: str, _class: str, student_id: str, _status: str, current_user = Depends(get_current_user)) -> Response:
+    is_success = crud.changeRedeemStatus(reward_id, _class, student_id, _status)
+    if is_success:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'message': f'successfully changed redemption status of student {student_id}'
+            }
+        )
+    return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'message': 'unable to proceed.'
+            }
+        )
 
 # @router.get('/redeem', tags=['rewards', 'redemption'])
 # def redeem(user_email: str, reward_name: str, current_user: any = Depends(get_current_user)) -> Response:

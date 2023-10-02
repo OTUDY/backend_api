@@ -155,6 +155,7 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
             for idx in range(len(response['students'])):
                 response['students'][idx]['inClassId'] = int(response['students'][idx]['inClassId'])
                 response['students'][idx]['points'] = int(response['students'][idx]['points'])
+                response['students'][idx]['netPoints'] = int(response['students'][idx]['netPoints'])
                 response['students'][idx]['firstName'] = cipher.decrypt(response['students'][idx]['firstName'].encode()).decode()
                 response['students'][idx]['lastName'] = cipher.decrypt(response['students'][idx]['lastName'].encode()).decode()
             if len(_d['missions']) > 0:
@@ -166,6 +167,10 @@ def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) ->
                 for idx, _ in enumerate(_d['rewards']):
                     _d['rewards'][idx]['spentPoints'] = int(_d['rewards'][idx]['spentPoints'])
                     _d['rewards'][idx]['slotsAmount'] = int(_d['rewards'][idx]['slotsAmount'])
+                    for idx2, _ in enumerate(_d['rewards'][idx]['onGoingRedemption']):
+                        _d['rewards'][idx]['onGoingRedemption'][idx2]['firstName'] = cipher.decrypt(_d['rewards'][idx]['onGoingRedemption'][idx2]['firstName'].encode()).decode()
+                        _d['rewards'][idx]['onGoingRedemption'][idx2]['lastName'] = cipher.decrypt(_d['rewards'][idx]['onGoingRedemption'][idx2]['lastName'].encode()).decode()
+                        _d['rewards'][idx]['onGoingRedemption'][idx2]['inClassId'] = int(_d['rewards'][idx]['onGoingRedemption'][idx2]['inClassId'])
                     response['rewards'] = _d['rewards']
             #print(response)
             return JSONResponse(
