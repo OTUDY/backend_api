@@ -93,18 +93,25 @@ class DynamoManager:
             return str(e)
 
     def getAssignedClasses(self, id):
-        try:
-            result = []
-            response = self._class_table.scan()
-            if response.get('Items') is None:
-                return False
-            for _class in response['Items']:
-                if id in _class['teachers']:
-                    result.append(_class['id'])
-
-            return result
-        except Exception as e:
-            return str(e)
+        response = self._class_table.scan()
+        assigned_classes = []
+        if 'Items' in response:
+            items = response['Items']
+            for _c in items:
+                if 'teachers' in _c:
+                    if id in _c['teachers']:
+                        data = {
+                            'id': _c['id'],
+                            'name': _c['name'],
+                            'totalStudents': len(_c['students']),
+                            'description': _c['description'],
+                            'level': _c['level'],
+                            'teachers': _c['teachers']
+                        }
+                        assigned_classes.append(data)
+            return assigned_classes
+        else:
+            return None
 
     def updateClassDetail(self, data):
         try:

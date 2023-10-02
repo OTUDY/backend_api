@@ -174,24 +174,19 @@ def get_current_user_detail(current_user: UserKey = Depends(get_current_user)) -
         )
     response = crud.getAssignedClasses(current_user)
     if response is not None:
-        to_send_back = []
-        for _c in response:
-            class_detailed = crud.getClassDetail(_c)['Item']
-            data = {}
-            data['id'] = class_detailed['id']
-            data['name'] = class_detailed['name']
-            data['level'] = class_detailed['level']
-            data['teachers'] = class_detailed['teachers']
-            data['description'] = class_detailed['description']
-            data['totalStudents'] = len(class_detailed['students'])
-
-            to_send_back.append(data)
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
-            'classes': to_send_back
-        }
-    )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                'classes': response
+            }
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                'message': 'Unable to proceed.'
+            }
+        )
 
 # @router.put("/student/edit_student_detail", tags=['student'])
 # async def edit_student_detail(current_user: UserKey = Depends(get_current_user), )
