@@ -114,26 +114,30 @@ class DynamoManager:
             return None
 
     def updateClassDetail(self, data):
-        try:
-            expression_attribute_names = {
-                '#reserved_keyword': 'level',
-                # Replace 'reserved_keyword' with your actual attribute name
-                '#reserved_keyword2': 'description'
-            }
-            response = self.table.update_item(
-                Key={'id': data['id']},
-                UpdateExpression=f'set #reserved_keyword=:l, #reserved_keyword2=:d',
+        response = self._class_table.get_item(
+            Key={'id': data['id']}
+        )
+        expression_attribute_names = {
+            '#reserved_keyword': 'name',
+            '#reserved_keyword2': 'level',
+            '#reserved_keyword3': 'description'    # Replace 'reserved_keyword' with your actual attribute name
+        }
+        if 'Item' in response:
+            self._class_table.update_item(
+                Key={
+                    "id": data['id']
+                },
+                UpdateExpression='SET #reserved_keyword=:n, #reserved_keyword2=:l, #reserved_keyword3=:d',
                 ExpressionAttributeNames=expression_attribute_names,
                 ExpressionAttributeValues={
+                    ':n': data['name'],
                     ':l': data['level'],
-                    ':d': data['description']
-                },
-                ReturnValues="UPDATED_NEW"
+                    ":d": data['description']
+                }
             )
-        except Exception as e:
-            return str(e)
+            return True
         else:
-            return response['Attributes']
+            return False
 
     def assignMission(self, class_id, student_id, mission_id):
         # Retrieve the item from DynamoDB
@@ -209,12 +213,24 @@ class DynamoManager:
                     index = x
                     break
             item['students'].pop(index)
+            for i in range(len(item['missions'])):
+                for j in range(len(item['missions'][i]['onGoingStatus'])):
+                    if item['missions'][i]['onGoingStatus'][j]['id'] == id:
+                        item['missions'][i]['onGoingStatus'].pop(j)
+                        break
+            for z in range(len(item['rewards'])):
+                for y in range(len(item['rewards'][z]['onGoingRedemption'])):
+                    if item['rewards'][z]['onGoingRedemption'][y]['id'] == id:
+                        item['rewards'][z]['onGoingRedemption'].pop(y)
+                        break
             try:
                 self._class_table.update_item(
                     Key={'id': class_id},
-                    UpdateExpression="SET students = :val",
+                    UpdateExpression="SET students = :val, missions = :val2, rewards = :val3",
                     ExpressionAttributeValues={
-                        ':val': item['students']
+                        ':val': item['students'],
+                        ':val2': item['missions'],
+                        ':val3': item['rewards']
                     }
                 )
                 return True

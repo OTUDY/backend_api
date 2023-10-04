@@ -2,7 +2,7 @@ from .crud import DynamoManager
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
-from .body.classes import ClassCreationForm, EditStudentForm
+from .body.classes import ClassCreationForm, EditStudentForm, UpdateClassForm
 from .body.user import AddStudentObject
 import jwt
 import os
@@ -78,23 +78,31 @@ def create_class(current_user: any = Depends(get_current_user), data: ClassCreat
 
 
 @router.put('/update_class_detail', tags=['class'])
-def update_class_detail(current_user: any = Depends(get_current_user), data: ClassCreationForm = None) -> Response:
-    try: 
-        _data = {   
-            'id': data.class_name,
+def update_class_detail(current_user: any = Depends(get_current_user), data: UpdateClassForm = None) -> Response:
+    if crud.updateClassDetail(
+        data={
+            'id': data.id,
+            'name': data.class_name,
             'level': data.level,
             'description': data.class_desc
         }
-        response = crud.updateClassDetail(_data)
+    ):
+        print('able to edit')
         return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
+            status_code=status.HTTP_200_OK,
             content={
-                'message': 'successfully updated class.',
-                'class': response
+                'message': f'''successfully editted the {data.id}'s class data.'''
             }
         )
-    except Exception as e:
-        return str(e)
+    else:
+        print('Unable to edit')
+        # return JSONResponse(
+        #     status_code=status.HTTP_400_BAD_REQUEST,
+        #     content={
+        #         'message': f'''unsuccessfully editted the {data.id}'s class data.'''
+        #     }
+        # )
+        return "Unable to proceed"
 
 
 @router.put('/assign_mission', tags=['class'])
@@ -118,7 +126,7 @@ async def delete_class(_class: str, current_user: any = Depends(get_current_user
     try:
         crud.deleteClass(_class)
         return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
+            status_code=status.HTTP_200_OK,
             content={
                 'message': 'successfully deleted',
                 'class': _class,
@@ -223,7 +231,7 @@ async def edit_student_detail(current_user = Depends(get_current_user), data: Ed
     cipher = Fernet(SECRET_KEY.encode())
     firstname = cipher.encrypt(data.firstname.encode()).decode()
     lastname = cipher.encrypt(data.lastname.encode()).decode()
-    if crud.editStudentData(data.original_id, firstname, firstname, data.inclass_no, data.class_id):
+    if crud.editStudentData(data.original_id, firstname, lastname, data.inclass_no, data.class_id):
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={

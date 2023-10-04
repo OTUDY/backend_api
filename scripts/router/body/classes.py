@@ -5,6 +5,12 @@ class ClassCreationForm(BaseModel):
     level: str
     class_desc: str
 
+class UpdateClassForm(BaseModel):
+    id: str
+    class_name: str
+    level: str
+    class_desc: str
+
 class EditStudentForm(BaseModel):
     original_id: str 
     firstname: str
