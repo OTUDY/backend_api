@@ -240,3 +240,11 @@ async def edit_student_detail(current_user = Depends(get_current_user), data: Ed
         )
     else:
         return "Unable to proceed"
+    
+@router.get('/get_student_point', tags=['student'])
+async def get_student_point(_class: str, student_id: str, current_user = Depends(get_current_user)) -> Response:
+    student_point = crud.getStudentPoint(_class, student_id)
+    if student_point is None:
+        return 0
+    else :
+        return student_point

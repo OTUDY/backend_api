@@ -623,3 +623,14 @@ class DynamoManager:
                 return False
         else:
             return False
+        
+    def getStudentPoint(self, class_id, id):
+        response = self._class_table.get_item(
+            Key={'id': class_id}
+        )
+        if 'Item' in response:
+            item = response['Item']
+            for j in item['students']:
+                if j['id'] == id:
+                    return j['points']
+        return None
