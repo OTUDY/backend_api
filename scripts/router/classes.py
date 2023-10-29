@@ -139,6 +139,7 @@ async def delete_class(_class: str, current_user: any = Depends(get_current_user
 @router.get('/get_class_meta_data', tags=['class'])
 def get_meta_data(_class: str, current_user: any = Depends(get_current_user)) -> Response:
     cipher = Fernet(SECRET_KEY.encode())
+    print(os.environ.get('key'))
     try:
         data = crud.getClassDetail(_class)
         if 'Item' in data:

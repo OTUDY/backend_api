@@ -481,6 +481,7 @@ class DynamoManager:
         )
         if 'Item' in response:
             item = response['Item']
+            print(item['students'])
             if 'rewards' not in item:
                 item['rewards'] = []
             on_going_status = []
