@@ -89,7 +89,7 @@ def register(data: RegisterForm) -> Response:
 
 @router.get('/get_temp_token', tags=['users'])
 async def get_temp_token(request: Request) -> Response:
-    access_token_expires = datetime.utcnow() + timedelta(minutes=900)
+    access_token_expires = datetime.utcnow() + timedelta(minutes=43200)
     access_token = Tool.create_token(
         data={"sub": random.randint(10000, 19999)}, expires_delta=access_token_expires, secret=SECRET, algorithm='HS256'
     )
