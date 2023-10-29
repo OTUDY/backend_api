@@ -1,3 +1,4 @@
+from pprint import pprint
 import random
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -481,7 +482,6 @@ class DynamoManager:
         )
         if 'Item' in response:
             item = response['Item']
-            print(item['students'])
             if 'rewards' not in item:
                 item['rewards'] = []
             on_going_status = []
@@ -493,7 +493,7 @@ class DynamoManager:
                         'inClassId': j['inClassId'],
                         'status': 'ยังไม่ได้ทำการแลก'
                     }
-            on_going_status.append(to_append_data)
+                on_going_status.append(to_append_data)
 
             reward_data = {
                 'id': ''.join(random.choice(alphabets) for i in range(5)),
@@ -505,7 +505,6 @@ class DynamoManager:
                 'onGoingRedemption': on_going_status
             }
             item['rewards'].append(reward_data)
-
             try:
                 self._class_table.update_item(
                     Key={
@@ -516,6 +515,7 @@ class DynamoManager:
                         ':val': item['rewards']
                     }
                 )
+                
                 return True
             except:
                 return False
