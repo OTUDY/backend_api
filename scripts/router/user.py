@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Response, status, Depends
+import random
+from fastapi import APIRouter, HTTPException, Response, status, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
@@ -85,6 +86,23 @@ def register(data: RegisterForm) -> Response:
 # -------------------
 
 # ------ Token ------
+
+@router.get('/get_temp_token', tags=['users'])
+async def get_temp_token(request: Request) -> Response:
+    access_token_expires = datetime.utcnow() + timedelta(minutes=900)
+    access_token = Tool.create_token(
+        data={"sub": random.randint(10000, 19999)}, expires_delta=access_token_expires, secret=SECRET, algorithm='HS256'
+    )
+    print(f'| System notification | : User temp_student has logged in @ {datetime.utcnow()}.')
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED, 
+        content={
+                    "access_token": access_token,
+                    "token_type": "bearer",
+                    'expired_time': str(access_token_expires)
+        }
+    )
+
 @router.post("/login", tags=['user'])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     if form_data.client_id == '2':
