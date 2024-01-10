@@ -610,6 +610,7 @@ class DynamoManager:
             for i in range(len(item['students'])):
                 if item['students'][i]['id'] == student_id:
                     item['students'][i]['points'] -= spent_points
+                    break
             try:
                 self._class_table.update_item(
                     Key={'id': class_id},
